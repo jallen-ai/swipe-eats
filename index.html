@@ -574,7 +574,7 @@
     /* ============================================================
        MATCH TRAY
        ============================================================ */
-    function MatchTray({ matches, onSelect }) {
+    function MatchTray({ matches, onSelect, onRemove }) {
       if (matches.length === 0) return null;
 
       return (
@@ -590,25 +590,56 @@
           zIndex: 50,
         }}>
           {matches.map((m, i) => (
-            <button
+            <div
               key={m.id}
-              onClick={() => onSelect(m)}
               style={{
+                position: 'relative',
                 flexShrink: 0,
-                width: '64px',
-                height: '64px',
-                borderRadius: '16px',
-                border: '2px solid var(--accent-primary)',
-                overflow: 'hidden',
-                cursor: 'pointer',
-                padding: 0,
-                background: 'var(--bg-card)',
-                boxShadow: `0 0 12px ${`var(--accent-primary-glow)`}`,
                 animation: `matchPop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) ${i * 0.05}s both`,
               }}
             >
-              <img src={m.photo} alt={m.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-            </button>
+              <button
+                onClick={() => onSelect(m)}
+                style={{
+                  width: '64px',
+                  height: '64px',
+                  borderRadius: '16px',
+                  border: '2px solid var(--accent-primary)',
+                  overflow: 'hidden',
+                  cursor: 'pointer',
+                  padding: 0,
+                  background: 'var(--bg-card)',
+                  boxShadow: `0 0 12px ${`var(--accent-primary-glow)`}`,
+                }}
+              >
+                <img src={m.photo} alt={m.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              </button>
+              {/* Remove / undo button */}
+              <button
+                onClick={(e) => { e.stopPropagation(); haptics.light(); onRemove(m.id); }}
+                style={{
+                  position: 'absolute',
+                  top: '-6px',
+                  right: '-6px',
+                  width: '22px',
+                  height: '22px',
+                  borderRadius: '50%',
+                  border: '2px solid var(--bg-primary)',
+                  background: 'var(--bg-surface)',
+                  color: 'var(--text-secondary)',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  padding: 0,
+                  zIndex: 2,
+                }}
+              >
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round">
+                  <path d="M18 6L6 18M6 6l12 12"/>
+                </svg>
+              </button>
+            </div>
           ))}
           <style>{`
             @keyframes matchPop {
@@ -1105,6 +1136,10 @@
         setCardKey(k => k + 1);
       }, [deck, currentIndex]);
 
+      const handleRemoveMatch = useCallback((restaurantId) => {
+        setMatches(prev => prev.filter(m => m.id !== restaurantId));
+      }, []);
+
       const handleLockIn = (restaurant) => {
         engineRef.current.recordOrder(restaurant);
         setLockedRestaurant(restaurant);
@@ -1218,7 +1253,7 @@
           </div>
 
           {/* Match tray */}
-          <MatchTray matches={matches} onSelect={handleLockIn} />
+          <MatchTray matches={matches} onSelect={handleLockIn} onRemove={handleRemoveMatch} />
 
           {/* Bottom controls */}
           <div style={{
