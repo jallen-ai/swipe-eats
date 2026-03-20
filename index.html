@@ -62,6 +62,20 @@
     const { useState, useEffect, useRef, useCallback, useMemo } = React;
 
     /* ============================================================
+       HAPTICS UTILITY
+       ============================================================ */
+    const haptics = {
+      light: () => navigator.vibrate?.(10),
+      medium: () => navigator.vibrate?.(25),
+      heavy: () => navigator.vibrate?.(40),
+      swipeRight: () => navigator.vibrate?.(15),
+      match: () => navigator.vibrate?.([50, 30, 50]),
+      shakeUp: () => navigator.vibrate?.([20, 15, 20, 15, 40]),
+      lockIn: () => navigator.vibrate?.([30, 50, 30, 50, 80]),
+      thresholdCross: () => navigator.vibrate?.(8),
+    };
+
+    /* ============================================================
        SEED DATA - Restaurants with cuisine categories
        ============================================================ */
     const RESTAURANTS = [
@@ -264,12 +278,14 @@
       const startY = useRef(0);
       const currentX = useRef(0);
       const isDragging = useRef(false);
+      const thresholdFired = useRef(false);
       const [dragState, setDragState] = useState({ x: 0, rotate: 0, opacity: 1 });
       const [exitAnim, setExitAnim] = useState(null);
 
       const handleStart = useCallback((clientX, clientY) => {
         if (!isTop) return;
         isDragging.current = true;
+        thresholdFired.current = false;
         startX.current = clientX;
         startY.current = clientY;
         currentX.current = 0;
@@ -282,6 +298,16 @@
         const rotate = dx * 0.08;
         const opacity = 1 - Math.abs(dx) / 600;
         setDragState({ x: dx, rotate, opacity: Math.max(0.6, opacity) });
+
+        // Fire haptic once when crossing the swipe threshold
+        if (!thresholdFired.current && Math.abs(dx) > 80) {
+          thresholdFired.current = true;
+          haptics.thresholdCross();
+        }
+        // Reset if they drag back below threshold
+        if (thresholdFired.current && Math.abs(dx) < 60) {
+          thresholdFired.current = false;
+        }
       }, []);
 
       const handleEnd = useCallback(() => {
@@ -292,6 +318,7 @@
 
         if (Math.abs(dx) > threshold) {
           const direction = dx > 0 ? 'right' : 'left';
+          if (direction === 'right') haptics.swipeRight();
           setExitAnim(direction);
           setTimeout(() => onSwipe(direction), 350);
         } else {
@@ -506,6 +533,7 @@
       const handleClick = () => {
         if (disabled || animating) return;
         setAnimating(true);
+        haptics.shakeUp();
         onShakeUp();
         setTimeout(() => setAnimating(false), 800);
       };
@@ -1050,6 +1078,7 @@
             if (partnerLikes.current.has(restaurant.id)) {
               setMatches(prev => [...prev, restaurant]);
               setMatchNotif(restaurant);
+              haptics.match();
             }
           } else {
             // Solo mode: right swipe adds to matches
@@ -1080,6 +1109,7 @@
         engineRef.current.recordOrder(restaurant);
         setLockedRestaurant(restaurant);
         setScreen('lockin');
+        haptics.lockIn();
       };
 
       // Current cards to show
@@ -1201,7 +1231,7 @@
           }}>
             {/* Left swipe button */}
             <button
-              onClick={() => currentCard && handleSwipe('left')}
+              onClick={() => { if (currentCard) { haptics.light(); handleSwipe('left'); } }}
               style={{
                 width: '60px', height: '60px', borderRadius: '50%',
                 border: '2px solid var(--bg-surface)', background: 'var(--bg-card)',
@@ -1219,7 +1249,7 @@
 
             {/* Right swipe button */}
             <button
-              onClick={() => currentCard && handleSwipe('right')}
+              onClick={() => { if (currentCard) { haptics.swipeRight(); handleSwipe('right'); } }}
               style={{
                 width: '60px', height: '60px', borderRadius: '50%',
                 border: 'none', background: 'linear-gradient(135deg, var(--accent-primary), #FF7043)',
