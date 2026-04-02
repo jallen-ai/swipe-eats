@@ -19,20 +19,46 @@ Deno.serve(async (req) => {
       );
     }
 
-    const url = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(query)}&key=${GOOGLE_API_KEY}`;
-    const resp = await fetch(url);
-    const data = await resp.json();
+    // Use Places API (New) Text Search — same API key as fetch-restaurants
+    const url = "https://places.googleapis.com/v1/places:searchText";
+    const resp = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Goog-Api-Key": GOOGLE_API_KEY,
+        "X-Goog-FieldMask": "places.location,places.formattedAddress,places.displayName",
+      },
+      body: JSON.stringify({ textQuery: query }),
+    });
 
-    if (data.status !== "OK" || !data.results?.length) {
+    if (!resp.ok) {
+      const err = await resp.text();
+      console.error("Places Text Search error:", resp.status, err);
       return new Response(
         JSON.stringify({ error: "Location not found" }),
         { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    const result = data.results[0];
-    const { lat, lng } = result.geometry.location;
-    const formattedAddress = result.formatted_address;
+    const data = await resp.json();
+    if (!data.places?.length) {
+      return new Response(
+        JSON.stringify({ error: "Location not found" }),
+        { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const place = data.places[0];
+    const lat = place.location?.latitude;
+    const lng = place.location?.longitude;
+    const formattedAddress = place.formattedAddress || place.displayName?.text || query;
+
+    if (lat == null || lng == null) {
+      return new Response(
+        JSON.stringify({ error: "Location not found" }),
+        { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
 
     return new Response(
       JSON.stringify({ lat, lng, formattedAddress }),

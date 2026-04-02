@@ -34,8 +34,9 @@ export default function SessionScreen({ onStart, loading, coords, onLocationChan
       const resp = await supabase.functions.invoke('geocode', {
         body: { query: locationQuery.trim() },
       });
-      if (resp.error || !resp.data?.lat) {
-        setLocationError('Location not found');
+      const result = resp.data;
+      if (resp.error || !result?.lat) {
+        setLocationError(result?.error || 'Location not found');
         return;
       }
       setLocationName(resp.data.formattedAddress);

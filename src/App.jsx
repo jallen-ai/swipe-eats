@@ -17,6 +17,7 @@ import GroupLinkScreen from './components/GroupLinkScreen';
 import LockInScreen from './components/LockInScreen';
 import ReviewMatchesScreen from './components/ReviewMatchesScreen';
 import ChooseForMeAnimation from './components/ChooseForMeAnimation';
+import SwipeFilterDrawer from './components/SwipeFilterDrawer';
 
 // Check if this is a join link: /s/{sessionId}
 function getJoinSessionId() {
@@ -36,6 +37,8 @@ export default function App() {
   const [shuffleActive, setShuffleActive] = useState(false);
   const [cardKey, setCardKey] = useState(0);
   const [choosingForMe, setChoosingForMe] = useState(false);
+  const [showSwipeFilters, setShowSwipeFilters] = useState(false);
+  const [activeFilters, setActiveFilters] = useState({ maxDistance: 20, selectedPrices: [], openNow: false });
 
   const session = useSession();
   const isGroupActive = mode === 'group' && session.sessionStatus === 'active';
@@ -153,6 +156,7 @@ export default function App() {
 
   const handleStart = async (selectedMode, filters) => {
     setMode(selectedMode);
+    setActiveFilters(filters);
     const source = availableRestaurants || FALLBACK_RESTAURANTS;
     const filtered = applyFilters(source, filters);
     if (selectedMode === 'group') {
@@ -236,6 +240,20 @@ export default function App() {
   const handleChosenForMe = (restaurant) => {
     handleLockIn(restaurant);
   };
+
+  const handleSwipeFilterApply = useCallback((newFilters) => {
+    setActiveFilters(newFilters);
+    setShowSwipeFilters(false);
+    // Re-filter remaining cards from the full source
+    const source = availableRestaurants || FALLBACK_RESTAURANTS;
+    const filtered = applyFilters(source, newFilters);
+    // Keep already-swiped cards, replace the rest with newly filtered+sorted
+    const alreadySwiped = new Set(deck.slice(0, currentIndex).map(r => r.id));
+    const remaining = filtered.filter(r => !alreadySwiped.has(r.id));
+    const sorted = engineRef.current.sortRestaurants(remaining);
+    setDeck([...deck.slice(0, currentIndex), ...sorted]);
+    setCardKey(k => k + 1);
+  }, [availableRestaurants, applyFilters, deck, currentIndex]);
 
   const handleViewMatches = () => {
     setScreen('review');
@@ -361,9 +379,30 @@ export default function App() {
             }}>GROUP</span>
           )}
         </div>
-        <span style={{ fontSize: '13px', color: 'var(--text-dim)', fontWeight: 700 }}>
-          {cardsRemaining > 0 ? `${cardsRemaining} left` : ''}
-        </span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <span style={{ fontSize: '13px', color: 'var(--text-dim)', fontWeight: 700 }}>
+            {cardsRemaining > 0 ? `${cardsRemaining} left` : ''}
+          </span>
+          {mode !== 'group' && (
+            <button
+              onClick={() => { haptics.filterTap(); setShowSwipeFilters(true); }}
+              style={{
+                width: '32px', height: '32px', borderRadius: '10px',
+                border: 'none', background: 'var(--bg-surface)',
+                color: (activeFilters.maxDistance < 20 || activeFilters.selectedPrices.length > 0 || activeFilters.openNow)
+                  ? 'var(--accent-secondary)' : 'var(--text-secondary)',
+                cursor: 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                padding: 0,
+              }}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <line x1="4" y1="6" x2="20" y2="6"/><line x1="8" y1="12" x2="20" y2="12"/><line x1="12" y1="18" x2="20" y2="18"/>
+                <circle cx="6" cy="12" r="2" fill="currentColor"/><circle cx="10" cy="18" r="2" fill="currentColor"/><circle cx="16" cy="6" r="2" fill="currentColor"/>
+              </svg>
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Card area */}
@@ -479,6 +518,15 @@ export default function App() {
         <MatchNotification
           restaurant={matchNotif}
           onDismiss={() => setMatchNotif(null)}
+        />
+      )}
+
+      {/* Filter drawer */}
+      {showSwipeFilters && (
+        <SwipeFilterDrawer
+          filters={activeFilters}
+          onApply={handleSwipeFilterApply}
+          onClose={() => setShowSwipeFilters(false)}
         />
       )}
     </div>
