@@ -1,0 +1,75 @@
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+:root {
+  --bg-primary: #141420;
+  --bg-card: #1E1E2E;
+  --bg-surface: #252536;
+  --accent-primary: #E85D3A;
+  --accent-primary-glow: rgba(232, 93, 58, 0.4);
+  --accent-secondary: #2DD4A8;
+  --accent-secondary-glow: rgba(45, 212, 168, 0.3);
+  --text-primary: #F5F5F7;
+  --text-secondary: #9696A8;
+  --text-dim: #5E5E72;
+  --radius-card: 24px;
+  --radius-btn: 16px;
+  --shadow-card: 0 8px 32px rgba(0,0,0,0.4);
+}
+
+html, body {
+  height: 100%;
+  overflow: hidden;
+  background: var(--bg-primary);
+  font-family: 'Nunito', sans-serif;
+  color: var(--text-primary);
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+body {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+#root {
+  width: 100%;
+  max-width: 430px;
+  height: 100%;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Keyframe animations */
+@keyframes matchPop {
+  from { transform: scale(0); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+@keyframes slideDown {
+  from { transform: translateY(-100px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+@keyframes shuffleFade {
+  0% { opacity: 0; }
+  20% { opacity: 1; }
+  80% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+@keyframes shuffleSpin {
+  from { transform: rotate(0deg) scale(0.5); }
+  to { transform: rotate(360deg) scale(1); }
+}
+
+@keyframes shuffleText {
+  0% { opacity: 0; transform: translateY(10px); }
+  30% { opacity: 1; transform: translateY(0); }
+  80% { opacity: 1; }
+  100% { opacity: 0; }
+}

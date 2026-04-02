@@ -1,0 +1,376 @@
+import { useState, useRef, useCallback, useEffect } from 'react';
+import { haptics } from './utils/haptics';
+import { PreferenceEngine } from './utils/PreferenceEngine';
+import { FALLBACK_RESTAURANTS } from './data/restaurants';
+import { useSession } from './hooks/useSession';
+import { useRealtimeSwipes } from './hooks/useRealtimeSwipes';
+import { useRestaurants } from './hooks/useRestaurants';
+import SwipeCard from './components/SwipeCard';
+import ShakeUpButton from './components/ShakeUpButton';
+import MatchTray from './components/MatchTray';
+import MatchNotification from './components/MatchNotification';
+import ShuffleOverlay from './components/ShuffleOverlay';
+import SessionScreen from './components/SessionScreen';
+import DuoLinkScreen from './components/DuoLinkScreen';
+import LockInScreen from './components/LockInScreen';
+
+// Check if this is a join link: /s/{sessionId}
+function getJoinSessionId() {
+  const match = window.location.pathname.match(/^\/s\/([a-z0-9]+)$/i);
+  return match ? match[1] : null;
+}
+
+export default function App() {
+  const [screen, setScreen] = useState('session');
+  const [mode, setMode] = useState(null);
+  const engineRef = useRef(new PreferenceEngine());
+  const [deck, setDeck] = useState([]);
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [matches, setMatches] = useState([]);
+  const [lockedRestaurant, setLockedRestaurant] = useState(null);
+  const [matchNotif, setMatchNotif] = useState(null);
+  const [shuffleActive, setShuffleActive] = useState(false);
+  const [cardKey, setCardKey] = useState(0);
+
+  const session = useSession();
+  const isDuoActive = mode === 'duo' && session.sessionStatus === 'active';
+  const realtime = useRealtimeSwipes(session.sessionId, isDuoActive);
+  const { restaurants: liveRestaurants, loading: restaurantsLoading, error: restaurantsError } = useRestaurants();
+
+  // Use live restaurants or fallback
+  const availableRestaurants = liveRestaurants && liveRestaurants.length > 0
+    ? liveRestaurants
+    : (!restaurantsLoading ? FALLBACK_RESTAURANTS : null);
+
+  // Handle join links on mount
+  useEffect(() => {
+    const joinId = getJoinSessionId();
+    if (joinId) {
+      setMode('duo');
+      session.joinSession(joinId).then(success => {
+        if (success) {
+          setScreen('swiping');
+        } else {
+          setScreen('session');
+        }
+      });
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // When session deck is ready (for duo mode), use it
+  useEffect(() => {
+    if (session.deck && mode === 'duo' && deck.length === 0) {
+      setDeck(session.deck);
+      setCurrentIndex(0);
+      setCardKey(k => k + 1);
+    }
+  }, [session.deck, mode, deck.length]);
+
+  // When partner joins (creator detects via presence), activate session
+  useEffect(() => {
+    if (mode === 'duo' && session.isCreator && realtime.partnerConnected && session.sessionStatus === 'waiting') {
+      session.activateSession();
+    }
+  }, [mode, session.isCreator, realtime.partnerConnected, session.sessionStatus, session.activateSession]);
+
+  // When partner triggers a match via realtime
+  useEffect(() => {
+    if (realtime.newPartnerMatch) {
+      const restaurant = deck.find(r => r.id === realtime.newPartnerMatch);
+      if (restaurant && !matches.find(m => m.id === restaurant.id)) {
+        setMatches(prev => [...prev, restaurant]);
+        setMatchNotif(restaurant);
+        haptics.match();
+      }
+      realtime.clearPartnerMatch();
+    }
+  }, [realtime.newPartnerMatch, realtime.clearPartnerMatch, matches, deck]);
+
+  const initDeck = useCallback((restaurantList) => {
+    const source = restaurantList || availableRestaurants || FALLBACK_RESTAURANTS;
+    const sorted = engineRef.current.sortRestaurants(source);
+    setDeck(sorted);
+    setCurrentIndex(0);
+    setCardKey(k => k + 1);
+  }, [availableRestaurants]);
+
+  const goHome = () => {
+    setScreen('session');
+    setMode(null);
+    setMatches([]);
+    setLockedRestaurant(null);
+    setMatchNotif(null);
+    setCurrentIndex(0);
+    setDeck([]);
+    if (window.location.pathname !== '/') {
+      window.history.replaceState(null, '', '/');
+    }
+  };
+
+  const handleStart = async (selectedMode) => {
+    setMode(selectedMode);
+    if (selectedMode === 'duo') {
+      const source = availableRestaurants || FALLBACK_RESTAURANTS;
+      const id = await session.createSession(source);
+      if (id) {
+        setScreen('duoLink');
+      }
+    } else {
+      initDeck();
+      setScreen('swiping');
+    }
+  };
+
+  const handleDuoContinue = () => {
+    if (session.deck) {
+      setDeck(session.deck);
+      setCurrentIndex(0);
+      setCardKey(k => k + 1);
+    }
+    setScreen('swiping');
+  };
+
+  const handleSwipe = useCallback(async (direction) => {
+    const restaurant = deck[currentIndex];
+    if (!restaurant) return;
+
+    engineRef.current.recordSwipe(restaurant, direction);
+
+    if (direction === 'right') {
+      if (mode === 'duo') {
+        const { isMatch } = await realtime.recordSwipe(restaurant.id, direction);
+        if (isMatch) {
+          setMatches(prev => {
+            if (prev.find(m => m.id === restaurant.id)) return prev;
+            return [...prev, restaurant];
+          });
+          setMatchNotif(restaurant);
+          haptics.match();
+        }
+      } else {
+        setMatches(prev => [...prev, restaurant]);
+      }
+    } else if (mode === 'duo') {
+      await realtime.recordSwipe(restaurant.id, direction);
+    }
+
+    setTimeout(() => {
+      setCurrentIndex(prev => prev + 1);
+    }, 50);
+  }, [deck, currentIndex, mode, realtime]);
+
+  const handleShakeUp = useCallback(() => {
+    engineRef.current.shakeUp();
+    setShuffleActive(true);
+  }, []);
+
+  const handleShuffleDone = useCallback(() => {
+    setShuffleActive(false);
+    const remaining = deck.slice(currentIndex + 1);
+    const sorted = engineRef.current.sortRestaurants(remaining);
+    setDeck(prev => [...prev.slice(0, currentIndex), prev[currentIndex], ...sorted]);
+    setCardKey(k => k + 1);
+  }, [deck, currentIndex]);
+
+  const handleRemoveMatch = useCallback((restaurantId) => {
+    setMatches(prev => prev.filter(m => m.id !== restaurantId));
+  }, []);
+
+  const handleLockIn = (restaurant) => {
+    engineRef.current.recordOrder(restaurant);
+    setLockedRestaurant(restaurant);
+    setScreen('lockin');
+    haptics.lockIn();
+  };
+
+  const currentCard = deck[currentIndex];
+  const nextCard = deck[currentIndex + 1];
+  const cardsRemaining = deck.length - currentIndex;
+
+  // Session error screen
+  if (session.sessionStatus === 'full') {
+    return (
+      <div style={{
+        height: '100%', display: 'flex', flexDirection: 'column',
+        justifyContent: 'center', alignItems: 'center', padding: '32px', gap: '16px',
+      }}>
+        <div style={{ fontSize: '48px' }}>🚫</div>
+        <h2 style={{ fontSize: '22px', fontWeight: 800 }}>Session is full</h2>
+        <p style={{ color: 'var(--text-secondary)', fontSize: '15px', fontWeight: 600, textAlign: 'center' }}>
+          This duo session already has two players.
+        </p>
+        <button onClick={goHome} style={{
+          marginTop: '12px', padding: '14px 32px', borderRadius: 'var(--radius-btn)',
+          border: 'none', background: 'var(--accent-primary)', color: 'white',
+          fontSize: '16px', fontWeight: 800, cursor: 'pointer', fontFamily: 'Nunito',
+        }}>Go Home</button>
+      </div>
+    );
+  }
+
+  if (screen === 'session') {
+    return <SessionScreen onStart={handleStart} loading={restaurantsLoading} />;
+  }
+
+  if (screen === 'duoLink') {
+    return (
+      <DuoLinkScreen
+        sessionId={session.sessionId}
+        partnerConnected={realtime.partnerConnected}
+        onContinue={handleDuoContinue}
+        onBack={goHome}
+      />
+    );
+  }
+
+  if (screen === 'lockin') {
+    return <LockInScreen restaurant={lockedRestaurant} mode={mode} onBack={() => setScreen('swiping')} />;
+  }
+
+  return (
+    <div style={{ height: '100%', position: 'relative', display: 'flex', flexDirection: 'column' }}>
+      {/* Header */}
+      <div style={{
+        padding: '16px 20px 8px',
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        zIndex: 20,
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <button
+            onClick={goHome}
+            style={{
+              width: '32px', height: '32px', borderRadius: '10px',
+              border: 'none', background: 'var(--bg-surface)',
+              color: 'var(--text-secondary)', cursor: 'pointer',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              padding: 0,
+            }}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+              <path d="M19 12H5M12 19l-7-7 7-7"/>
+            </svg>
+          </button>
+          <span style={{
+            fontSize: '20px', fontWeight: 900,
+            background: 'linear-gradient(135deg, var(--accent-primary), #FF8A65)',
+            WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
+          }}>SwipeEats</span>
+          {mode === 'duo' && (
+            <span style={{
+              marginLeft: '8px', fontSize: '11px', fontWeight: 700,
+              background: 'var(--accent-primary)', color: 'white',
+              padding: '2px 8px', borderRadius: '6px', verticalAlign: 'middle',
+            }}>DUO</span>
+          )}
+        </div>
+        <span style={{ fontSize: '13px', color: 'var(--text-dim)', fontWeight: 700 }}>
+          {cardsRemaining > 0 ? `${cardsRemaining} left` : ''}
+        </span>
+      </div>
+
+      {/* Card area */}
+      <div style={{ flex: 1, position: 'relative', display: 'flex', alignItems: 'center' }}>
+        {cardsRemaining <= 0 ? (
+          <div style={{ textAlign: 'center', width: '100%', padding: '32px' }}>
+            <div style={{ fontSize: '48px', marginBottom: '16px' }}>🍽️</div>
+            <h2 style={{ fontSize: '22px', fontWeight: 800, marginBottom: '8px' }}>That's all for now!</h2>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '15px', fontWeight: 600 }}>
+              {matches.length > 0
+                ? `You have ${matches.length} match${matches.length > 1 ? 'es' : ''} below. Tap one to lock it in!`
+                : 'No matches this round. Try again with Shake Up!'}
+            </p>
+            {mode !== 'duo' && (
+              <button
+                onClick={() => { initDeck(); }}
+                style={{
+                  marginTop: '20px', padding: '14px 32px',
+                  borderRadius: 'var(--radius-btn)', border: 'none',
+                  background: 'var(--accent-primary)', color: 'white',
+                  fontSize: '16px', fontWeight: 800, cursor: 'pointer',
+                  fontFamily: 'Nunito',
+                }}
+              >Reshuffle</button>
+            )}
+          </div>
+        ) : (
+          <>
+            {nextCard && (
+              <SwipeCard
+                key={`next-${nextCard.id}-${cardKey}`}
+                restaurant={nextCard}
+                isTop={false}
+                onSwipe={() => {}}
+                style={{ transform: 'scale(0.95)', filter: 'brightness(0.7)', top: '8px' }}
+              />
+            )}
+            {currentCard && (
+              <SwipeCard
+                key={`top-${currentCard.id}-${cardKey}`}
+                restaurant={currentCard}
+                isTop={true}
+                onSwipe={handleSwipe}
+              />
+            )}
+          </>
+        )}
+      </div>
+
+      {/* Match tray */}
+      <MatchTray matches={matches} onSelect={handleLockIn} onRemove={handleRemoveMatch} />
+
+      {/* Bottom controls */}
+      <div style={{
+        padding: '12px 32px 32px',
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        gap: '24px',
+        zIndex: 20,
+      }}>
+        <button
+          onClick={() => { if (currentCard) { haptics.light(); handleSwipe('left'); } }}
+          style={{
+            width: '60px', height: '60px', borderRadius: '50%',
+            border: '2px solid var(--bg-surface)', background: 'var(--bg-card)',
+            color: 'var(--text-secondary)', cursor: 'pointer',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}
+        >
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+            <path d="M18 6L6 18M6 6l12 12"/>
+          </svg>
+        </button>
+
+        <ShakeUpButton onShakeUp={handleShakeUp} disabled={cardsRemaining <= 1 || mode === 'duo'} />
+
+        <button
+          onClick={() => { if (currentCard) { haptics.swipeRight(); handleSwipe('right'); } }}
+          style={{
+            width: '60px', height: '60px', borderRadius: '50%',
+            border: 'none', background: 'linear-gradient(135deg, var(--accent-primary), #FF7043)',
+            color: 'white', cursor: 'pointer',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            boxShadow: '0 4px 16px var(--accent-primary-glow)',
+          }}
+        >
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor" stroke="none">
+            <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+          </svg>
+        </button>
+      </div>
+
+      {/* Shuffle overlay */}
+      <ShuffleOverlay active={shuffleActive} onDone={handleShuffleDone} />
+
+      {/* Match notification */}
+      {matchNotif && (
+        <MatchNotification
+          restaurant={matchNotif}
+          onDismiss={() => setMatchNotif(null)}
+        />
+      )}
+    </div>
+  );
+}

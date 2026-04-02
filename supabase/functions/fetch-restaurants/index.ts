@@ -1,0 +1,343 @@
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+
+const GOOGLE_API_KEY = Deno.env.get("GOOGLE_PLACES_API_KEY")!;
+const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
+const SUPABASE_SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+const CACHE_DAYS = 30;
+
+// Supabase client with service role (can write to restaurants table)
+const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
+
+// Compute grid cell string from lat/lng (rounded to 0.01 ≈ 1.1km)
+function toGridCell(lat: number, lng: number): string {
+  return `${(Math.round(lat * 100) / 100).toFixed(2)}_${(Math.round(lng * 100) / 100).toFixed(2)}`;
+}
+
+// Get 3x3 grid of cells around the user's location
+function getNearbyCells(lat: number, lng: number): string[] {
+  const cLat = Math.round(lat * 100) / 100;
+  const cLng = Math.round(lng * 100) / 100;
+  const cells: string[] = [];
+  for (let dLat = -0.01; dLat <= 0.01; dLat += 0.01) {
+    for (let dLng = -0.01; dLng <= 0.01; dLng += 0.01) {
+      const gLat = (cLat + dLat).toFixed(2);
+      const gLng = (cLng + dLng).toFixed(2);
+      cells.push(`${gLat}_${gLng}`);
+    }
+  }
+  return cells;
+}
+
+// Map Google place type to a cuisine name
+function deriveCuisine(place: any): string {
+  const typeDisplay = place.primaryTypeDisplayName?.text;
+  if (typeDisplay) {
+    // Clean up Google's display names
+    const cleaned = typeDisplay.replace(/ restaurant$/i, "").replace(/ place$/i, "");
+    if (cleaned && cleaned.toLowerCase() !== "restaurant") return cleaned;
+  }
+
+  // Fall back to types array
+  const cuisineTypes: Record<string, string> = {
+    japanese_restaurant: "Japanese",
+    sushi_restaurant: "Japanese",
+    ramen_restaurant: "Japanese",
+    chinese_restaurant: "Chinese",
+    thai_restaurant: "Thai",
+    vietnamese_restaurant: "Vietnamese",
+    korean_restaurant: "Korean",
+    indian_restaurant: "Indian",
+    mexican_restaurant: "Mexican",
+    italian_restaurant: "Italian",
+    greek_restaurant: "Greek",
+    mediterranean_restaurant: "Mediterranean",
+    american_restaurant: "American",
+    hamburger_restaurant: "American",
+    pizza_restaurant: "Pizza",
+    seafood_restaurant: "Seafood",
+    steak_house: "Steakhouse",
+    barbecue_restaurant: "BBQ",
+    breakfast_restaurant: "Breakfast",
+    brunch_restaurant: "Brunch",
+    sandwich_shop: "Sandwiches",
+    ice_cream_shop: "Dessert",
+    bakery: "Bakery",
+    cafe: "Cafe",
+    coffee_shop: "Coffee",
+  };
+
+  const types = place.types || [];
+  for (const t of types) {
+    if (cuisineTypes[t]) return cuisineTypes[t];
+  }
+
+  return "Restaurant";
+}
+
+// Map cuisine to cuisine group
+function getCuisineGroup(cuisine: string): string {
+  const groups: Record<string, string[]> = {
+    Asian: ["Japanese", "Thai", "Vietnamese", "Korean", "Chinese"],
+    "South Asian": ["Indian"],
+    Latin: ["Mexican"],
+    European: ["Italian", "Greek", "Mediterranean", "French"],
+    American: ["American", "BBQ", "Steakhouse", "Breakfast", "Brunch", "Sandwiches"],
+    Island: ["Hawaiian"],
+  };
+  for (const [group, cuisines] of Object.entries(groups)) {
+    if (cuisines.includes(cuisine)) return group;
+  }
+  return "Other";
+}
+
+// Fetch restaurants from Google Places API for a single grid cell
+async function fetchFromGoogle(cellLat: number, cellLng: number): Promise<any[]> {
+  const url = "https://places.googleapis.com/v1/places:searchNearby";
+  const body = {
+    includedTypes: ["restaurant"],
+    maxResultCount: 20,
+    locationRestriction: {
+      circle: {
+        center: { latitude: cellLat, longitude: cellLng },
+        radius: 800, // ~0.5mi radius per cell
+      },
+    },
+  };
+  const fieldMask = [
+    "places.id",
+    "places.displayName",
+    "places.primaryType",
+    "places.primaryTypeDisplayName",
+    "places.types",
+    "places.priceLevel",
+    "places.rating",
+    "places.userRatingCount",
+    "places.location",
+    "places.formattedAddress",
+    "places.photos",
+    "places.regularOpeningHours",
+  ].join(",");
+
+  const resp = await fetch(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-Goog-Api-Key": GOOGLE_API_KEY,
+      "X-Goog-FieldMask": fieldMask,
+    },
+    body: JSON.stringify(body),
+  });
+
+  if (!resp.ok) {
+    const err = await resp.text();
+    console.error("Google Places API error:", resp.status, err);
+    return [];
+  }
+
+  const data = await resp.json();
+  return data.places || [];
+}
+
+// Download a photo from Google Places and upload to Supabase Storage
+async function cachePhoto(
+  placeId: string,
+  photoRef: string,
+  gridCell: string
+): Promise<{ path: string; attributions: any[] } | null> {
+  try {
+    // Google Places photo URL
+    const photoUrl = `https://places.googleapis.com/v1/${photoRef}/media?maxHeightPx=800&maxWidthPx=600&key=${GOOGLE_API_KEY}`;
+    const resp = await fetch(photoUrl);
+    if (!resp.ok) return null;
+
+    const blob = await resp.blob();
+    const path = `${gridCell}/${placeId}.jpg`;
+
+    const { error } = await supabase.storage
+      .from("restaurant-photos")
+      .upload(path, blob, {
+        contentType: "image/jpeg",
+        upsert: true,
+      });
+
+    if (error) {
+      console.error("Photo upload error:", error.message);
+      return null;
+    }
+
+    return { path, attributions: [] };
+  } catch (e) {
+    console.error("Photo fetch error:", e);
+    return null;
+  }
+}
+
+// Map a Google Place to our restaurant row
+async function mapPlace(place: any, gridCell: string) {
+  const placeId = place.id;
+  const cuisine = deriveCuisine(place);
+
+  // Price level mapping
+  const priceLevelMap: Record<string, number> = {
+    PRICE_LEVEL_FREE: 0,
+    PRICE_LEVEL_INEXPENSIVE: 1,
+    PRICE_LEVEL_MODERATE: 2,
+    PRICE_LEVEL_EXPENSIVE: 3,
+    PRICE_LEVEL_VERY_EXPENSIVE: 4,
+  };
+  const priceLevel = place.priceLevel ? (priceLevelMap[place.priceLevel] ?? null) : null;
+
+  // Photo handling
+  let photoPath: string | null = null;
+  let photoRef: string | null = null;
+  let photoAttributions: any[] = [];
+
+  if (place.photos && place.photos.length > 0) {
+    const firstPhoto = place.photos[0];
+    photoRef = firstPhoto.name;
+    photoAttributions = firstPhoto.authorAttributions || [];
+
+    const cached = await cachePhoto(placeId, photoRef, gridCell);
+    if (cached) {
+      photoPath = cached.path;
+    }
+  }
+
+  return {
+    place_id: placeId,
+    name: place.displayName?.text || "Unknown",
+    cuisine,
+    cuisine_group: getCuisineGroup(cuisine),
+    price_level: priceLevel,
+    rating: place.rating ?? null,
+    rating_count: place.userRatingCount ?? null,
+    lat: place.location?.latitude,
+    lng: place.location?.longitude,
+    address: place.formattedAddress ?? null,
+    photo_path: photoPath,
+    photo_ref: photoRef,
+    photo_attributions: photoAttributions,
+    hours: place.regularOpeningHours ?? null,
+    types: place.types ?? [],
+    grid_cell: gridCell,
+    fetched_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  };
+}
+
+Deno.serve(async (req) => {
+  // CORS headers
+  const corsHeaders = {
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  };
+
+  if (req.method === "OPTIONS") {
+    return new Response("ok", { headers: corsHeaders });
+  }
+
+  try {
+    const { lat, lng } = await req.json();
+    if (typeof lat !== "number" || typeof lng !== "number") {
+      return new Response(
+        JSON.stringify({ error: "lat and lng are required numbers" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const cells = getNearbyCells(lat, lng);
+    const now = new Date();
+
+    // Check which cells are cached
+    const { data: cachedCells } = await supabase
+      .from("grid_cache")
+      .select("grid_cell, expires_at")
+      .in("grid_cell", cells);
+
+    const cachedSet = new Set<string>();
+    for (const c of cachedCells || []) {
+      if (new Date(c.expires_at) > now) {
+        cachedSet.add(c.grid_cell);
+      }
+    }
+
+    const staleCells = cells.filter((c) => !cachedSet.has(c));
+
+    // Fetch from Google for stale cells
+    for (const cell of staleCells) {
+      const [cellLatStr, cellLngStr] = cell.split("_");
+      const cellLat = parseFloat(cellLatStr);
+      const cellLng = parseFloat(cellLngStr);
+
+      const places = await fetchFromGoogle(cellLat, cellLng);
+      // Filter out non-restaurant places (hotels, lodging, etc.)
+      const excludeTypes = new Set(["hotel", "lodging", "motel", "resort_hotel", "extended_stay_hotel"]);
+      const filteredPlaces = places.filter((p: any) => {
+        const primary = p.primaryType || "";
+        if (excludeTypes.has(primary)) return false;
+        const types = p.types || [];
+        if (types.includes("lodging") && !types.includes("restaurant")) return false;
+        return true;
+      });
+      if (filteredPlaces.length > 0) {
+        const restaurants = await Promise.all(
+          filteredPlaces.map((p: any) => mapPlace(p, cell))
+        );
+
+        // Upsert restaurants
+        const { error: upsertError } = await supabase
+          .from("restaurants")
+          .upsert(restaurants, { onConflict: "place_id" });
+
+        if (upsertError) {
+          console.error("Upsert error:", upsertError.message);
+        }
+      }
+
+      // Update grid_cache
+      const expiresAt = new Date(now.getTime() + CACHE_DAYS * 24 * 60 * 60 * 1000);
+      await supabase.from("grid_cache").upsert({
+        grid_cell: cell,
+        fetched_at: now.toISOString(),
+        restaurant_count: places.length,
+        expires_at: expiresAt.toISOString(),
+      });
+    }
+
+    // Fetch all restaurants for the grid from DB
+    const { data: restaurants, error: fetchError } = await supabase
+      .from("restaurants")
+      .select("*")
+      .in("grid_cell", cells);
+
+    if (fetchError) {
+      return new Response(
+        JSON.stringify({ error: fetchError.message }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Build public photo URLs
+    const storageBase = `${SUPABASE_URL}/storage/v1/object/public/restaurant-photos`;
+    const mapped = (restaurants || []).map((r: any) => ({
+      ...r,
+      photo_url: r.photo_path ? `${storageBase}/${r.photo_path}` : null,
+    }));
+
+    return new Response(
+      JSON.stringify({
+        restaurants: mapped,
+        fromCache: staleCells.length === 0,
+        cellsFetched: staleCells.length,
+        totalCells: cells.length,
+      }),
+      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  } catch (e) {
+    console.error("Edge function error:", e);
+    return new Response(
+      JSON.stringify({ error: "Internal server error" }),
+      { status: 500, headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" } }
+    );
+  }
+});
