@@ -123,18 +123,15 @@ export default function App() {
   const applyFilters = useCallback((restaurants, filters) => {
     if (!filters) return restaurants;
     let filtered = restaurants;
-    if (filters.maxDistance < 10) {
+    if (filters.maxDistance < 20) {
       filtered = filtered.filter(r => (r.distanceMi ?? 0) <= filters.maxDistance);
     }
-    if (filters.priceRange) {
+    if (filters.selectedPrices && filters.selectedPrices.length > 0) {
       const priceLevels = { '$': 1, '$$': 2, '$$$': 3, '$$$$': 4 };
       filtered = filtered.filter(r => {
         const level = priceLevels[r.price] || 2;
-        return level >= filters.priceRange[0] && level <= filters.priceRange[1];
+        return filters.selectedPrices.includes(level);
       });
-    }
-    if (filters.selectedCuisines && filters.selectedCuisines.length > 0) {
-      filtered = filtered.filter(r => filters.selectedCuisines.includes(r.cuisine));
     }
     return filtered;
   }, []);

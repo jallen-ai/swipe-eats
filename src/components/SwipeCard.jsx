@@ -179,17 +179,6 @@ export default function SwipeCard({ restaurant, onSwipe, isTop, style }) {
           </div>
         </div>
 
-        {restaurant.photoAttribution && (
-          <div style={{
-            position: 'absolute', top: '8px', right: '8px',
-            fontSize: '9px', color: 'rgba(255,255,255,0.6)',
-            background: 'rgba(0,0,0,0.3)', padding: '2px 6px',
-            borderRadius: '4px', backdropFilter: 'blur(4px)',
-          }}>
-            {restaurant.photoAttribution}
-          </div>
-        )}
-
         {showRight && (
           <div style={{
             position: 'absolute', inset: 0,

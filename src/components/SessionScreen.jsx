@@ -1,30 +1,23 @@
 import { useState } from 'react';
 import { haptics } from '../utils/haptics';
 
-const CUISINE_OPTIONS = [
-  'American', 'Chinese', 'Greek', 'Indian', 'Irish', 'Italian',
-  'Japanese', 'Korean', 'Mediterranean', 'Mexican', 'Seafood', 'Thai', 'Uzbek',
-];
-
 const PRICE_LABELS = ['$', '$$', '$$$', '$$$$'];
 
 export default function SessionScreen({ onStart, loading }) {
   const [showFilters, setShowFilters] = useState(false);
-  const [maxDistance, setMaxDistance] = useState(10);
-  const [priceRange, setPriceRange] = useState([1, 4]); // min/max price level
-  const [selectedCuisines, setSelectedCuisines] = useState([]);
-  const [cuisineDropdownOpen, setCuisineDropdownOpen] = useState(false);
+  const [maxDistance, setMaxDistance] = useState(20);
+  const [selectedPrices, setSelectedPrices] = useState([]); // empty = all
 
-  const filters = { maxDistance, priceRange, selectedCuisines };
+  const filters = { maxDistance, selectedPrices };
 
-  const toggleCuisine = (cuisine) => {
+  const togglePrice = (level) => {
     haptics.filterTap();
-    setSelectedCuisines(prev =>
-      prev.includes(cuisine) ? prev.filter(c => c !== cuisine) : [...prev, cuisine]
+    setSelectedPrices(prev =>
+      prev.includes(level) ? prev.filter(l => l !== level) : [...prev, level]
     );
   };
 
-  const hasActiveFilters = maxDistance < 10 || priceRange[0] > 1 || priceRange[1] < 4 || selectedCuisines.length > 0;
+  const hasActiveFilters = maxDistance < 20 || selectedPrices.length > 0;
 
   return (
     <div style={{
@@ -132,42 +125,30 @@ export default function SessionScreen({ onStart, loading }) {
               <span style={{ fontSize: '13px', fontWeight: 800, color: 'var(--accent-primary)' }}>{maxDistance} mi</span>
             </div>
             <input
-              type="range" min="1" max="10" value={maxDistance}
+              type="range" min="1" max="20" value={maxDistance}
               onChange={e => { setMaxDistance(Number(e.target.value)); haptics.filterTap(); }}
               style={{
                 width: '100%', height: '4px', borderRadius: '2px',
                 appearance: 'none', WebkitAppearance: 'none',
-                background: `linear-gradient(to right, var(--accent-primary) ${(maxDistance - 1) / 9 * 100}%, var(--bg-surface) ${(maxDistance - 1) / 9 * 100}%)`,
+                background: `linear-gradient(to right, var(--accent-primary) ${(maxDistance - 1) / 19 * 100}%, var(--bg-surface) ${(maxDistance - 1) / 19 * 100}%)`,
                 outline: 'none', cursor: 'pointer',
               }}
             />
           </div>
 
-          {/* Price range */}
+          {/* Price toggles - simple on/off */}
           <div>
-            <label style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-secondary)', display: 'block', marginBottom: '8px' }}>Price Range</label>
+            <label style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-secondary)', display: 'block', marginBottom: '8px' }}>
+              Price {selectedPrices.length > 0 ? '' : '(all)'}
+            </label>
             <div style={{ display: 'flex', gap: '8px' }}>
               {PRICE_LABELS.map((label, i) => {
                 const level = i + 1;
-                const isActive = level >= priceRange[0] && level <= priceRange[1];
+                const isActive = selectedPrices.includes(level);
                 return (
                   <button
                     key={label}
-                    onClick={() => {
-                      haptics.filterTap();
-                      if (isActive && priceRange[0] === level && priceRange[1] === level) {
-                        setPriceRange([1, 4]); // reset
-                      } else if (isActive) {
-                        // Narrow the range
-                        setPriceRange([level, level]);
-                      } else {
-                        // Expand to include this level
-                        setPriceRange([
-                          Math.min(priceRange[0], level),
-                          Math.max(priceRange[1], level),
-                        ]);
-                      }
-                    }}
+                    onClick={() => togglePrice(level)}
                     style={{
                       flex: 1, padding: '8px', borderRadius: '10px',
                       border: isActive ? '2px solid var(--accent-primary)' : '2px solid var(--bg-surface)',
@@ -182,61 +163,6 @@ export default function SessionScreen({ onStart, loading }) {
                 );
               })}
             </div>
-          </div>
-
-          {/* Cuisine multi-select */}
-          <div style={{ position: 'relative' }}>
-            <label style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-secondary)', display: 'block', marginBottom: '8px' }}>Cuisine</label>
-            <button
-              onClick={() => { haptics.filterTap(); setCuisineDropdownOpen(!cuisineDropdownOpen); }}
-              style={{
-                width: '100%', padding: '10px 14px', borderRadius: '10px',
-                border: '1px solid var(--bg-surface)', background: 'var(--bg-surface)',
-                color: selectedCuisines.length > 0 ? 'var(--text-primary)' : 'var(--text-dim)',
-                fontSize: '14px', fontWeight: 600, cursor: 'pointer',
-                textAlign: 'left', fontFamily: 'Nunito',
-                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-              }}
-            >
-              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                {selectedCuisines.length > 0 ? selectedCuisines.join(', ') : 'All cuisines'}
-              </span>
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"
-                style={{ flexShrink: 0, transform: cuisineDropdownOpen ? 'rotate(180deg)' : 'rotate(0)', transition: 'transform 0.2s' }}>
-                <path d="M6 9l6 6 6-6"/>
-              </svg>
-            </button>
-
-            {cuisineDropdownOpen && (
-              <div style={{
-                position: 'absolute', top: '100%', left: 0, right: 0,
-                marginTop: '4px', background: 'var(--bg-surface)',
-                borderRadius: '12px', padding: '8px',
-                maxHeight: '180px', overflowY: 'auto',
-                zIndex: 100, boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
-                WebkitOverflowScrolling: 'touch',
-              }}>
-                {CUISINE_OPTIONS.map(cuisine => (
-                  <button
-                    key={cuisine}
-                    onClick={() => toggleCuisine(cuisine)}
-                    style={{
-                      width: '100%', padding: '10px 12px',
-                      background: selectedCuisines.includes(cuisine) ? 'rgba(232, 93, 58, 0.15)' : 'transparent',
-                      border: 'none', borderRadius: '8px',
-                      color: selectedCuisines.includes(cuisine) ? 'var(--accent-primary)' : 'var(--text-primary)',
-                      fontSize: '14px', fontWeight: selectedCuisines.includes(cuisine) ? 700 : 600,
-                      cursor: 'pointer', textAlign: 'left',
-                      display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                      fontFamily: 'Nunito',
-                    }}
-                  >
-                    {cuisine}
-                    {selectedCuisines.includes(cuisine) && <span>✓</span>}
-                  </button>
-                ))}
-              </div>
-            )}
           </div>
         </div>
       )}

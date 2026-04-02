@@ -12,7 +12,10 @@ export default function ChooseForMeAnimation({ matches, onChosen }) {
   const startSpin = useCallback(() => {
     // Pick the winner upfront
     const winnerIdx = Math.floor(Math.random() * matches.length);
-    const totalTicks = 20 + matches.length * 3 + winnerIdx; // ensure we land on winner
+    // Keep it fast — ~15 ticks total, landing on winner
+    const totalTicks = 10 + (winnerIdx % matches.length);
+    const startTime = Date.now();
+    const maxDuration = 2500; // 2.5s spinning, then reveal
 
     let tick = 0;
     const spin = () => {
@@ -22,27 +25,29 @@ export default function ChooseForMeAnimation({ matches, onChosen }) {
       setActiveIndex(idx);
       haptics.spinTick();
 
-      if (tick >= totalTicks) {
+      const elapsed = Date.now() - startTime;
+      if (tick >= totalTicks || elapsed >= maxDuration) {
         clearInterval(intervalRef.current);
-        // Reveal
+        // Land on winner
+        setActiveIndex(winnerIdx % matches.length);
         setWinner(matches[winnerIdx]);
         setTimeout(() => {
           setPhase('reveal');
           haptics.spinReveal();
-        }, 300);
+        }, 250);
         return;
       }
 
       // Decelerate: increase interval as we go
-      const progress = tick / totalTicks;
-      if (progress > 0.5) {
+      const progress = elapsed / maxDuration;
+      if (progress > 0.4) {
         clearInterval(intervalRef.current);
-        const newDelay = 80 + (progress - 0.5) * 2 * 400; // 80ms → 480ms
+        const newDelay = 80 + progress * 300; // 80ms → 380ms
         intervalRef.current = setInterval(spin, newDelay);
       }
     };
 
-    intervalRef.current = setInterval(spin, 70);
+    intervalRef.current = setInterval(spin, 60);
   }, [matches]);
 
   useEffect(() => {
