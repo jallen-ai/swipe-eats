@@ -26,13 +26,15 @@ function getDeliveryUrl(app, restaurant) {
   }
 }
 
-function ActionButton({ href, onClick, icon, label, sublabel, variant = 'default' }) {
+function ActionButton({ href, onClick, icon, label, sublabel, variant = 'default', disabled = false }) {
   const isGradient = variant === 'primary';
   const style = {
     display: 'flex', alignItems: 'center', gap: '14px',
     width: '100%', padding: '14px 16px', borderRadius: '14px',
-    border: 'none', cursor: 'pointer', textDecoration: 'none',
+    border: 'none', cursor: disabled ? 'default' : 'pointer', textDecoration: 'none',
     fontFamily: 'Nunito', textAlign: 'left',
+    opacity: disabled ? 0.35 : 1,
+    pointerEvents: disabled ? 'none' : 'auto',
     background: isGradient
       ? 'linear-gradient(135deg, var(--accent-primary), #FF7043)'
       : 'var(--bg-card)',
@@ -166,29 +168,107 @@ export default function LockInScreen({ restaurant, onBack, mode }) {
 
         {/* Action buttons */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-          {/* Google Maps - Primary */}
-          <ActionButton
-            variant="primary"
-            href={getMapsUrl(restaurant)}
-            label="View on Google Maps"
-            sublabel="Directions, hours & reviews"
-            icon={
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
-              </svg>
-            }
-          />
+          {/* Order Delivery / Pickup - Primary */}
+          {restaurant.delivery !== false && (
+            <>
+              <button
+                onClick={() => { haptics.filterTap(); setDeliveryExpanded(!deliveryExpanded); }}
+                disabled={restaurant.delivery === false && restaurant.takeout === false}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: '14px',
+                  width: '100%', padding: '14px 16px', borderRadius: '14px',
+                  border: 'none', cursor: 'pointer', textAlign: 'left',
+                  fontFamily: 'Nunito',
+                  background: 'linear-gradient(135deg, var(--accent-primary), #FF7043)',
+                  color: 'white',
+                  boxShadow: '0 4px 16px var(--accent-primary-glow)',
+                }}
+              >
+                <div style={{
+                  width: '40px', height: '40px', borderRadius: '12px',
+                  background: 'rgba(255,255,255,0.2)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  flexShrink: 0,
+                }}>
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <rect x="1" y="3" width="15" height="13" rx="2"/>
+                    <polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/>
+                    <circle cx="5.5" cy="18.5" r="2.5"/>
+                    <circle cx="18.5" cy="18.5" r="2.5"/>
+                  </svg>
+                </div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: '15px', fontWeight: 800 }}>
+                    {restaurant.delivery === true && restaurant.takeout !== false ? 'Delivery / Pickup' :
+                     restaurant.delivery === true ? 'Order Delivery' :
+                     restaurant.takeout === true ? 'Order Pickup' : 'Delivery / Pickup'}
+                  </div>
+                  <div style={{ fontSize: '12px', fontWeight: 600, marginTop: '2px', color: 'rgba(255,255,255,0.7)' }}>
+                    Uber Eats, DoorDash, Grubhub
+                  </div>
+                </div>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+                  stroke="rgba(255,255,255,0.6)" strokeWidth="2.5"
+                  style={{
+                    flexShrink: 0, transition: 'transform 0.2s',
+                    transform: deliveryExpanded ? 'rotate(90deg)' : 'rotate(0deg)',
+                  }}>
+                  <path d="M9 18l6-6-6-6"/>
+                </svg>
+              </button>
+
+              {deliveryExpanded && (
+                <div style={{
+                  background: 'var(--bg-card)', borderRadius: '14px',
+                  padding: '4px 16px', marginTop: '-6px',
+                  animation: 'fadeInUp 0.2s ease-out',
+                }}>
+                  {['Uber Eats', 'DoorDash', 'Grubhub'].map((app, i) => (
+                    <a
+                      key={app}
+                      href={getDeliveryUrl(app, restaurant)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={() => haptics.light()}
+                      style={{
+                        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                        padding: '12px 0', textDecoration: 'none',
+                        borderTop: i > 0 ? '1px solid var(--bg-surface)' : 'none',
+                      }}
+                    >
+                      <span style={{ fontWeight: 700, fontSize: '14px', color: 'var(--text-primary)' }}>{app}</span>
+                      <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--accent-secondary)' }}>Open →</span>
+                    </a>
+                  ))}
+                </div>
+              )}
+            </>
+          )}
 
           {/* Make a Reservation */}
           <ActionButton
-            href={getOpenTableUrl(restaurant)}
+            href={restaurant.reservable !== false ? getOpenTableUrl(restaurant) : undefined}
+            disabled={restaurant.reservable === false}
             label="Make a Reservation"
-            sublabel="Search on OpenTable"
+            sublabel={restaurant.reservable === false ? 'Not available' : 'Search on OpenTable'}
             icon={
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--accent-secondary)" strokeWidth="2">
                 <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
                 <line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/>
                 <line x1="3" y1="10" x2="21" y2="10"/>
+              </svg>
+            }
+          />
+
+          {/* Google Maps */}
+          <ActionButton
+            href={getMapsUrl(restaurant)}
+            label="View on Google Maps"
+            sublabel="Directions, hours & reviews"
+            icon={
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--accent-secondary)" strokeWidth="2">
+                <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/>
+                <circle cx="12" cy="9" r="2.5"/>
               </svg>
             }
           />
@@ -205,76 +285,6 @@ export default function LockInScreen({ restaurant, onBack, mode }) {
                 </svg>
               }
             />
-          )}
-
-          {/* Order Delivery - Expandable */}
-          <button
-            onClick={() => { haptics.filterTap(); setDeliveryExpanded(!deliveryExpanded); }}
-            style={{
-              display: 'flex', alignItems: 'center', gap: '14px',
-              width: '100%', padding: '14px 16px', borderRadius: '14px',
-              border: 'none', cursor: 'pointer', textAlign: 'left',
-              background: 'var(--bg-card)', color: 'var(--text-primary)',
-              fontFamily: 'Nunito',
-            }}
-          >
-            <div style={{
-              width: '40px', height: '40px', borderRadius: '12px',
-              background: 'var(--bg-surface)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              flexShrink: 0,
-            }}>
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--accent-secondary)" strokeWidth="2">
-                <rect x="1" y="3" width="15" height="13" rx="2"/>
-                <polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/>
-                <circle cx="5.5" cy="18.5" r="2.5"/>
-                <circle cx="18.5" cy="18.5" r="2.5"/>
-              </svg>
-            </div>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: '15px', fontWeight: 800 }}>Order Delivery</div>
-              <div style={{ fontSize: '12px', fontWeight: 600, marginTop: '2px', color: 'var(--text-dim)' }}>
-                Uber Eats, DoorDash, Grubhub
-              </div>
-            </div>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
-              stroke="var(--text-dim)" strokeWidth="2.5"
-              style={{
-                flexShrink: 0, transition: 'transform 0.2s',
-                transform: deliveryExpanded ? 'rotate(90deg)' : 'rotate(0deg)',
-              }}>
-              <path d="M9 18l6-6-6-6"/>
-            </svg>
-          </button>
-
-          {/* Delivery apps expanded */}
-          {deliveryExpanded && (
-            <div style={{
-              background: 'var(--bg-card)', borderRadius: '14px',
-              padding: '4px 16px', marginTop: '-6px',
-              animation: 'fadeInUp 0.2s ease-out',
-            }}>
-              {['Uber Eats', 'DoorDash', 'Grubhub'].map((app, i) => (
-                <a
-                  key={app}
-                  href={getDeliveryUrl(app, restaurant)}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  onClick={() => haptics.light()}
-                  style={{
-                    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                    padding: '12px 0', textDecoration: 'none',
-                    borderTop: i > 0 ? '1px solid var(--bg-surface)' : 'none',
-                  }}
-                >
-                  <span style={{ fontWeight: 700, fontSize: '14px', color: 'var(--text-primary)' }}>{app}</span>
-                  <span style={{
-                    fontSize: '13px', fontWeight: 700,
-                    color: 'var(--accent-secondary)',
-                  }}>Open →</span>
-                </a>
-              ))}
-            </div>
           )}
         </div>
       </div>

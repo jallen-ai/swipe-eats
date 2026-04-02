@@ -116,6 +116,10 @@ async function fetchFromGoogle(cellLat: number, cellLng: number): Promise<any[]>
     "places.formattedAddress",
     "places.photos",
     "places.regularOpeningHours",
+    "places.delivery",
+    "places.dineIn",
+    "places.takeout",
+    "places.reservable",
   ].join(",");
 
   const resp = await fetch(url, {
@@ -218,6 +222,10 @@ async function mapPlace(place: any, gridCell: string) {
     photo_ref: photoRef,
     photo_attributions: photoAttributions,
     hours: place.regularOpeningHours ?? null,
+    delivery: place.delivery ?? null,
+    dine_in: place.dineIn ?? null,
+    takeout: place.takeout ?? null,
+    reservable: place.reservable ?? null,
     types: place.types ?? [],
     grid_cell: gridCell,
     fetched_at: new Date().toISOString(),

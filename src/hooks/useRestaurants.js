@@ -29,6 +29,10 @@ function mapRestaurant(row, userLat, userLng) {
     lat: parseFloat(row.lat),
     lng: parseFloat(row.lng),
     hours: row.hours,
+    delivery: row.delivery,
+    dineIn: row.dine_in,
+    takeout: row.takeout,
+    reservable: row.reservable,
   };
 }
 

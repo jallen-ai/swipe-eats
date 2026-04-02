@@ -8,7 +8,7 @@ export default function SessionScreen({ onStart, loading, coords, onLocationChan
   const [showFilters, setShowFilters] = useState(false);
   const [maxDistance, setMaxDistance] = useState(20);
   const [selectedPrices, setSelectedPrices] = useState([]); // empty = all
-  const [openNow, setOpenNow] = useState(false);
+  const [openNow, setOpenNow] = useState(true);
 
   // Location search state
   const [showLocationInput, setShowLocationInput] = useState(false);
