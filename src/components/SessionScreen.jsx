@@ -1,14 +1,23 @@
 import { useState } from 'react';
 import { haptics } from '../utils/haptics';
+import { supabase } from '../utils/supabase';
 
 const PRICE_LABELS = ['$', '$$', '$$$', '$$$$'];
 
-export default function SessionScreen({ onStart, loading }) {
+export default function SessionScreen({ onStart, loading, coords, onLocationChange }) {
   const [showFilters, setShowFilters] = useState(false);
   const [maxDistance, setMaxDistance] = useState(20);
   const [selectedPrices, setSelectedPrices] = useState([]); // empty = all
+  const [openNow, setOpenNow] = useState(false);
 
-  const filters = { maxDistance, selectedPrices };
+  // Location search state
+  const [showLocationInput, setShowLocationInput] = useState(false);
+  const [locationQuery, setLocationQuery] = useState('');
+  const [locationName, setLocationName] = useState(null); // null = "Near you"
+  const [locationLoading, setLocationLoading] = useState(false);
+  const [locationError, setLocationError] = useState(null);
+
+  const filters = { maxDistance, selectedPrices, openNow };
 
   const togglePrice = (level) => {
     haptics.filterTap();
@@ -17,7 +26,39 @@ export default function SessionScreen({ onStart, loading }) {
     );
   };
 
-  const hasActiveFilters = maxDistance < 20 || selectedPrices.length > 0;
+  const handleLocationSearch = async () => {
+    if (!locationQuery.trim()) return;
+    setLocationLoading(true);
+    setLocationError(null);
+    try {
+      const resp = await supabase.functions.invoke('geocode', {
+        body: { query: locationQuery.trim() },
+      });
+      if (resp.error || !resp.data?.lat) {
+        setLocationError('Location not found');
+        return;
+      }
+      setLocationName(resp.data.formattedAddress);
+      onLocationChange({ lat: resp.data.lat, lng: resp.data.lng });
+      setShowLocationInput(false);
+      setLocationQuery('');
+      haptics.medium();
+    } catch {
+      setLocationError('Location not found');
+    } finally {
+      setLocationLoading(false);
+    }
+  };
+
+  const handleUseMyLocation = () => {
+    setLocationName(null);
+    setShowLocationInput(false);
+    setLocationQuery('');
+    onLocationChange(null); // signals "use geolocation"
+    haptics.medium();
+  };
+
+  const hasActiveFilters = maxDistance < 20 || selectedPrices.length > 0 || openNow;
 
   return (
     <div style={{
@@ -49,6 +90,80 @@ export default function SessionScreen({ onStart, loading }) {
           fontWeight: 600,
         }}>Swipe your way to dinner</p>
       </div>
+
+      {/* Location selector */}
+      <button
+        onClick={() => { haptics.filterTap(); setShowLocationInput(!showLocationInput); }}
+        style={{
+          width: '100%', display: 'flex', alignItems: 'center', gap: '8px',
+          background: 'var(--bg-card)', border: 'none', borderRadius: 'var(--radius-btn)',
+          padding: '12px 16px', cursor: 'pointer', color: 'var(--text-primary)',
+        }}
+      >
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={locationName ? 'var(--accent-secondary)' : 'var(--text-secondary)'} strokeWidth="2.5">
+          <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/>
+          <circle cx="12" cy="9" r="2.5"/>
+        </svg>
+        <span style={{ fontSize: '14px', fontWeight: 700, flex: 1, textAlign: 'left',
+          color: locationName ? 'var(--accent-secondary)' : 'var(--text-secondary)',
+        }}>
+          {locationName || 'Near you'}
+        </span>
+        <span style={{ fontSize: '12px', color: 'var(--text-dim)', fontWeight: 600 }}>Change</span>
+      </button>
+
+      {showLocationInput && (
+        <div style={{
+          width: '100%', background: 'var(--bg-card)', borderRadius: 'var(--radius-btn)',
+          padding: '16px', animation: 'fadeInUp 0.2s ease-out',
+          display: 'flex', flexDirection: 'column', gap: '12px',
+        }}>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <input
+              type="text"
+              value={locationQuery}
+              onChange={e => setLocationQuery(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && handleLocationSearch()}
+              placeholder="City or zip code..."
+              style={{
+                flex: 1, padding: '10px 14px', borderRadius: '10px',
+                border: '2px solid var(--bg-surface)', background: 'var(--bg-surface)',
+                color: 'var(--text-primary)', fontSize: '14px', fontWeight: 600,
+                fontFamily: 'Nunito', outline: 'none',
+              }}
+              autoFocus
+            />
+            <button
+              onClick={handleLocationSearch}
+              disabled={locationLoading || !locationQuery.trim()}
+              style={{
+                padding: '10px 16px', borderRadius: '10px',
+                border: 'none', background: 'var(--accent-primary)',
+                color: 'white', fontSize: '13px', fontWeight: 700,
+                cursor: 'pointer', fontFamily: 'Nunito',
+                opacity: locationLoading || !locationQuery.trim() ? 0.5 : 1,
+              }}
+            >
+              {locationLoading ? '...' : 'Go'}
+            </button>
+          </div>
+          {locationError && (
+            <span style={{ fontSize: '12px', color: '#F44336', fontWeight: 600 }}>{locationError}</span>
+          )}
+          {locationName && (
+            <button
+              onClick={handleUseMyLocation}
+              style={{
+                background: 'none', border: 'none', cursor: 'pointer',
+                color: 'var(--accent-secondary)', fontSize: '13px', fontWeight: 700,
+                padding: 0, textAlign: 'left',
+              }}
+            >
+              Use my location
+            </button>
+          )}
+        </div>
+      )}
 
       {/* Mode buttons */}
       <button
@@ -164,6 +279,29 @@ export default function SessionScreen({ onStart, loading }) {
               })}
             </div>
           </div>
+
+          {/* Open Now toggle */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <label style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-secondary)' }}>Open Now</label>
+            <button
+              onClick={() => { haptics.filterTap(); setOpenNow(!openNow); }}
+              style={{
+                width: '44px', height: '24px', borderRadius: '12px',
+                border: 'none', cursor: 'pointer', padding: '2px',
+                background: openNow ? 'var(--accent-primary)' : 'var(--bg-surface)',
+                transition: 'background 0.2s',
+                display: 'flex', alignItems: 'center',
+              }}
+            >
+              <div style={{
+                width: '20px', height: '20px', borderRadius: '50%',
+                background: 'white',
+                transform: openNow ? 'translateX(20px)' : 'translateX(0)',
+                transition: 'transform 0.2s',
+                boxShadow: '0 1px 3px rgba(0,0,0,0.3)',
+              }} />
+            </button>
+          </div>
         </div>
       )}
 
@@ -177,7 +315,7 @@ export default function SessionScreen({ onStart, loading }) {
             background: 'var(--accent-secondary)',
             animation: 'pulse 1.5s ease-in-out infinite',
           }} />
-          Finding restaurants near you...
+          {locationName ? `Finding restaurants near ${locationName.split(',')[0]}...` : 'Finding restaurants near you...'}
         </div>
       )}
 

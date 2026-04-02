@@ -111,6 +111,7 @@ export function useRestaurants() {
     loading: loading || (!coords && !error),
     error,
     coords,
+    setCoords,
     refetch: () => coords && fetchRestaurants(coords.lat, coords.lng),
   };
 }

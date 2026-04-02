@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { haptics } from '../utils/haptics';
+import { isOpenNow } from '../utils/hours';
 
 export default function SwipeCard({ restaurant, onSwipe, isTop, style }) {
   const cardRef = useRef(null);
@@ -103,6 +104,7 @@ export default function SwipeCard({ restaurant, onSwipe, isTop, style }) {
   const swipeProgress = Math.min(Math.abs(dragState.x) / 80, 1);
   const showRight = dragState.x > 20;
   const showLeft = dragState.x < -20;
+  const hoursStatus = isOpenNow(restaurant.hours);
 
   return (
     <div
@@ -241,6 +243,20 @@ export default function SwipeCard({ restaurant, onSwipe, isTop, style }) {
             fontWeight: 700,
             color: 'var(--accent-secondary)',
           }}>{restaurant.cuisine}</span>
+          {hoursStatus.isOpen !== null && (
+            <span style={{
+              padding: '5px 12px',
+              borderRadius: '20px',
+              fontSize: '12px',
+              fontWeight: 700,
+              background: hoursStatus.isOpen
+                ? 'rgba(76, 175, 80, 0.15)'
+                : 'rgba(244, 67, 54, 0.15)',
+              color: hoursStatus.isOpen ? '#4CAF50' : '#F44336',
+            }}>
+              {hoursStatus.isOpen ? 'Open' : 'Closed'}
+            </span>
+          )}
           {restaurant.rating && (
             <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="var(--accent-primary)" stroke="none">
@@ -261,6 +277,15 @@ export default function SwipeCard({ restaurant, onSwipe, isTop, style }) {
             WebkitBoxOrient: 'vertical', overflow: 'hidden',
           }}>
             📍 {restaurant.address}
+          </p>
+        )}
+        {hoursStatus.statusText && (
+          <p style={{
+            fontSize: '12px',
+            color: hoursStatus.isOpen ? '#4CAF50' : '#F44336',
+            fontWeight: 600, margin: 0,
+          }}>
+            {hoursStatus.statusText}
           </p>
         )}
       </div>

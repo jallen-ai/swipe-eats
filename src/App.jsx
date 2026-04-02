@@ -6,6 +6,7 @@ import { calcDistanceMi, formatDistance } from './utils/cuisine';
 import { useSession } from './hooks/useSession';
 import { useRealtimeSwipes } from './hooks/useRealtimeSwipes';
 import { useRestaurants } from './hooks/useRestaurants';
+import { isOpenNow } from './utils/hours';
 import SwipeCard from './components/SwipeCard';
 import ShakeUpButton from './components/ShakeUpButton';
 import MatchTray from './components/MatchTray';
@@ -39,7 +40,15 @@ export default function App() {
   const session = useSession();
   const isGroupActive = mode === 'group' && session.sessionStatus === 'active';
   const realtime = useRealtimeSwipes(session.sessionId, isGroupActive);
-  const { restaurants: liveRestaurants, loading: restaurantsLoading, error: restaurantsError, coords } = useRestaurants();
+  const { restaurants: liveRestaurants, loading: restaurantsLoading, error: restaurantsError, coords, setCoords } = useRestaurants();
+  const geolocateCoordsRef = useRef(null);
+
+  // Save initial geolocation coords so we can revert from manual location
+  useEffect(() => {
+    if (coords && !geolocateCoordsRef.current) {
+      geolocateCoordsRef.current = coords;
+    }
+  }, [coords]);
 
   // Use live restaurants or fallback, with dynamic distances
   const availableRestaurants = (() => {
@@ -131,6 +140,12 @@ export default function App() {
       filtered = filtered.filter(r => {
         const level = priceLevels[r.price] || 2;
         return filters.selectedPrices.includes(level);
+      });
+    }
+    if (filters.openNow) {
+      filtered = filtered.filter(r => {
+        const status = isOpenNow(r.hours);
+        return status.isOpen !== false; // keep open and unknown (null)
       });
     }
     return filtered;
@@ -251,8 +266,26 @@ export default function App() {
     );
   }
 
+  const handleLocationChange = useCallback((newCoords) => {
+    if (newCoords) {
+      setCoords(newCoords);
+    } else {
+      // Revert to geolocation
+      if (geolocateCoordsRef.current) {
+        setCoords(geolocateCoordsRef.current);
+      } else {
+        // Re-trigger geolocation
+        navigator.geolocation?.getCurrentPosition(
+          (pos) => setCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+          () => {},
+          { enableHighAccuracy: false, timeout: 10000, maximumAge: 300000 }
+        );
+      }
+    }
+  }, [setCoords]);
+
   if (screen === 'session') {
-    return <SessionScreen onStart={handleStart} loading={restaurantsLoading} />;
+    return <SessionScreen onStart={handleStart} loading={restaurantsLoading} coords={coords} onLocationChange={handleLocationChange} />;
   }
 
   if (screen === 'groupLink') {
