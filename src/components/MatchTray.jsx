@@ -1,6 +1,6 @@
 import { haptics } from '../utils/haptics';
 
-export default function MatchTray({ matches, onSelect, onRemove }) {
+export default function MatchTray({ matches, onSelect, onRemove, onViewAll }) {
   if (matches.length === 0) return null;
 
   return (
@@ -11,17 +11,48 @@ export default function MatchTray({ matches, onSelect, onRemove }) {
       right: '16px',
       display: 'flex',
       gap: '10px',
+      alignItems: 'center',
       overflowX: 'auto',
       padding: '8px 0',
       zIndex: 50,
     }}>
+      {/* View All button */}
+      <div style={{ flexShrink: 0, animation: 'matchPop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) both' }}>
+        <button
+          onClick={() => { haptics.navTransition(); onViewAll(); }}
+          style={{
+            width: '64px',
+            height: '64px',
+            borderRadius: '16px',
+            border: '2px solid var(--accent-primary)',
+            background: 'linear-gradient(135deg, var(--accent-primary), #FF7043)',
+            cursor: 'pointer',
+            padding: 0,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '2px',
+            boxShadow: '0 0 12px var(--accent-primary-glow)',
+          }}
+        >
+          <span style={{ fontSize: '18px', fontWeight: 900, color: 'white', lineHeight: 1 }}>
+            {matches.length}
+          </span>
+          <span style={{ fontSize: '8px', fontWeight: 800, color: 'rgba(255,255,255,0.8)', letterSpacing: '0.5px', textTransform: 'uppercase' }}>
+            matches
+          </span>
+        </button>
+      </div>
+
+      {/* Match thumbnails */}
       {matches.map((m, i) => (
         <div
           key={m.id}
           style={{
             position: 'relative',
             flexShrink: 0,
-            animation: `matchPop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) ${i * 0.05}s both`,
+            animation: `matchPop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) ${(i + 1) * 0.05}s both`,
           }}
         >
           <button

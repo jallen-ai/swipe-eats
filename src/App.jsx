@@ -13,6 +13,8 @@ import ShuffleOverlay from './components/ShuffleOverlay';
 import SessionScreen from './components/SessionScreen';
 import DuoLinkScreen from './components/DuoLinkScreen';
 import LockInScreen from './components/LockInScreen';
+import ReviewMatchesScreen from './components/ReviewMatchesScreen';
+import ChooseForMeAnimation from './components/ChooseForMeAnimation';
 
 // Check if this is a join link: /s/{sessionId}
 function getJoinSessionId() {
@@ -31,6 +33,7 @@ export default function App() {
   const [matchNotif, setMatchNotif] = useState(null);
   const [shuffleActive, setShuffleActive] = useState(false);
   const [cardKey, setCardKey] = useState(0);
+  const [choosingForMe, setChoosingForMe] = useState(false);
 
   const session = useSession();
   const isDuoActive = mode === 'duo' && session.sessionStatus === 'active';
@@ -179,8 +182,21 @@ export default function App() {
   const handleLockIn = (restaurant) => {
     engineRef.current.recordOrder(restaurant);
     setLockedRestaurant(restaurant);
+    setChoosingForMe(false);
     setScreen('lockin');
     haptics.lockIn();
+  };
+
+  const handleChooseForMe = () => {
+    setChoosingForMe(true);
+  };
+
+  const handleChosenForMe = (restaurant) => {
+    handleLockIn(restaurant);
+  };
+
+  const handleViewMatches = () => {
+    setScreen('review');
   };
 
   const currentCard = deck[currentIndex];
@@ -223,8 +239,28 @@ export default function App() {
     );
   }
 
+  if (screen === 'review') {
+    return (
+      <>
+        <ReviewMatchesScreen
+          matches={matches}
+          mode={mode}
+          onSelect={handleLockIn}
+          onChooseForMe={handleChooseForMe}
+          onBack={() => setScreen('swiping')}
+        />
+        {choosingForMe && (
+          <ChooseForMeAnimation
+            matches={matches}
+            onChosen={handleChosenForMe}
+          />
+        )}
+      </>
+    );
+  }
+
   if (screen === 'lockin') {
-    return <LockInScreen restaurant={lockedRestaurant} mode={mode} onBack={() => setScreen('swiping')} />;
+    return <LockInScreen restaurant={lockedRestaurant} mode={mode} onBack={() => setScreen(matches.length > 0 ? 'review' : 'swiping')} />;
   }
 
   return (
@@ -278,16 +314,30 @@ export default function App() {
             <h2 style={{ fontSize: '22px', fontWeight: 800, marginBottom: '8px' }}>That's all for now!</h2>
             <p style={{ color: 'var(--text-secondary)', fontSize: '15px', fontWeight: 600 }}>
               {matches.length > 0
-                ? `You have ${matches.length} match${matches.length > 1 ? 'es' : ''} below. Tap one to lock it in!`
-                : 'No matches this round. Try again with Shake Up!'}
+                ? `You matched with ${matches.length} restaurant${matches.length > 1 ? 's' : ''}!`
+                : 'No matches this round. Try again!'}
             </p>
+            {matches.length > 0 && (
+              <button
+                onClick={() => { haptics.navTransition(); handleViewMatches(); }}
+                style={{
+                  marginTop: '20px', padding: '14px 32px',
+                  borderRadius: 'var(--radius-btn)', border: 'none',
+                  background: 'linear-gradient(135deg, var(--accent-primary), #FF7043)',
+                  color: 'white', fontSize: '16px', fontWeight: 800, cursor: 'pointer',
+                  fontFamily: 'Nunito', boxShadow: '0 4px 16px var(--accent-primary-glow)',
+                }}
+              >Review Matches</button>
+            )}
             {mode !== 'duo' && (
               <button
                 onClick={() => { initDeck(); }}
                 style={{
-                  marginTop: '20px', padding: '14px 32px',
-                  borderRadius: 'var(--radius-btn)', border: 'none',
-                  background: 'var(--accent-primary)', color: 'white',
+                  marginTop: '12px', padding: '14px 32px',
+                  borderRadius: 'var(--radius-btn)',
+                  border: matches.length > 0 ? '1px solid var(--bg-surface)' : 'none',
+                  background: matches.length > 0 ? 'transparent' : 'var(--accent-primary)',
+                  color: matches.length > 0 ? 'var(--text-secondary)' : 'white',
                   fontSize: '16px', fontWeight: 800, cursor: 'pointer',
                   fontFamily: 'Nunito',
                 }}
@@ -318,7 +368,7 @@ export default function App() {
       </div>
 
       {/* Match tray */}
-      <MatchTray matches={matches} onSelect={handleLockIn} onRemove={handleRemoveMatch} />
+      <MatchTray matches={matches} onSelect={handleLockIn} onRemove={handleRemoveMatch} onViewAll={handleViewMatches} />
 
       {/* Bottom controls */}
       <div style={{

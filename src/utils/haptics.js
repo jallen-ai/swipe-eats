@@ -7,4 +7,9 @@ export const haptics = {
   shakeUp: () => navigator.vibrate?.([20, 15, 20, 15, 40]),
   lockIn: () => navigator.vibrate?.([30, 50, 30, 50, 80]),
   thresholdCross: () => navigator.vibrate?.(8),
+  filterTap: () => navigator.vibrate?.(12),
+  spinTick: () => navigator.vibrate?.(6),
+  spinReveal: () => navigator.vibrate?.([40, 30, 40, 30, 100]),
+  memberJoin: () => navigator.vibrate?.([20, 20, 30]),
+  navTransition: () => navigator.vibrate?.(15),
 };

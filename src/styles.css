@@ -73,3 +73,33 @@ body {
   80% { opacity: 1; }
   100% { opacity: 0; }
 }
+
+@keyframes matchListSlide {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes chooseGlow {
+  0%, 100% { box-shadow: 0 4px 20px var(--accent-primary-glow); }
+  50% { box-shadow: 0 4px 36px var(--accent-primary-glow), 0 0 60px rgba(232, 93, 58, 0.2); }
+}
+
+@keyframes revealFlash {
+  0% { background: rgba(232, 93, 58, 0.3); }
+  100% { background: var(--bg-primary); }
+}
+
+@keyframes revealCard {
+  from { transform: scale(0.3) rotateY(90deg); opacity: 0; }
+  to { transform: scale(1) rotateY(0deg); opacity: 1; }
+}
+
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 0.3; }
+  50% { opacity: 1; }
+}
