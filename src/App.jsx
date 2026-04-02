@@ -2,6 +2,7 @@ import { useState, useRef, useCallback, useEffect } from 'react';
 import { haptics } from './utils/haptics';
 import { PreferenceEngine } from './utils/PreferenceEngine';
 import { FALLBACK_RESTAURANTS } from './data/restaurants';
+import { calcDistanceMi, formatDistance } from './utils/cuisine';
 import { useSession } from './hooks/useSession';
 import { useRealtimeSwipes } from './hooks/useRealtimeSwipes';
 import { useRestaurants } from './hooks/useRestaurants';
@@ -11,7 +12,7 @@ import MatchTray from './components/MatchTray';
 import MatchNotification from './components/MatchNotification';
 import ShuffleOverlay from './components/ShuffleOverlay';
 import SessionScreen from './components/SessionScreen';
-import DuoLinkScreen from './components/DuoLinkScreen';
+import GroupLinkScreen from './components/GroupLinkScreen';
 import LockInScreen from './components/LockInScreen';
 import ReviewMatchesScreen from './components/ReviewMatchesScreen';
 import ChooseForMeAnimation from './components/ChooseForMeAnimation';
@@ -36,20 +37,29 @@ export default function App() {
   const [choosingForMe, setChoosingForMe] = useState(false);
 
   const session = useSession();
-  const isDuoActive = mode === 'duo' && session.sessionStatus === 'active';
-  const realtime = useRealtimeSwipes(session.sessionId, isDuoActive);
-  const { restaurants: liveRestaurants, loading: restaurantsLoading, error: restaurantsError } = useRestaurants();
+  const isGroupActive = mode === 'group' && session.sessionStatus === 'active';
+  const realtime = useRealtimeSwipes(session.sessionId, isGroupActive);
+  const { restaurants: liveRestaurants, loading: restaurantsLoading, error: restaurantsError, coords } = useRestaurants();
 
-  // Use live restaurants or fallback
-  const availableRestaurants = liveRestaurants && liveRestaurants.length > 0
-    ? liveRestaurants
-    : (!restaurantsLoading ? FALLBACK_RESTAURANTS : null);
+  // Use live restaurants or fallback, with dynamic distances
+  const availableRestaurants = (() => {
+    if (liveRestaurants && liveRestaurants.length > 0) return liveRestaurants;
+    if (restaurantsLoading) return null;
+    // Apply dynamic distances to fallback data
+    return FALLBACK_RESTAURANTS.map(r => {
+      if (coords && r.lat && r.lng) {
+        const distMi = calcDistanceMi(coords.lat, coords.lng, r.lat, r.lng);
+        return { ...r, distance: formatDistance(distMi), distanceMi: distMi };
+      }
+      return { ...r, distance: r.distance || '—' };
+    }).sort((a, b) => (a.distanceMi ?? 999) - (b.distanceMi ?? 999));
+  })();
 
   // Handle join links on mount
   useEffect(() => {
     const joinId = getJoinSessionId();
     if (joinId) {
-      setMode('duo');
+      setMode('group');
       session.joinSession(joinId).then(success => {
         if (success) {
           setScreen('swiping');
@@ -62,7 +72,7 @@ export default function App() {
 
   // When session deck is ready (for duo mode), use it
   useEffect(() => {
-    if (session.deck && mode === 'duo' && deck.length === 0) {
+    if (session.deck && mode === 'group' && deck.length === 0) {
       setDeck(session.deck);
       setCurrentIndex(0);
       setCardKey(k => k + 1);
@@ -71,7 +81,7 @@ export default function App() {
 
   // When partner joins (creator detects via presence), activate session
   useEffect(() => {
-    if (mode === 'duo' && session.isCreator && realtime.partnerConnected && session.sessionStatus === 'waiting') {
+    if (mode === 'group' && session.isCreator && realtime.partnerConnected && session.sessionStatus === 'waiting') {
       session.activateSession();
     }
   }, [mode, session.isCreator, realtime.partnerConnected, session.sessionStatus, session.activateSession]);
@@ -110,21 +120,41 @@ export default function App() {
     }
   };
 
-  const handleStart = async (selectedMode) => {
+  const applyFilters = useCallback((restaurants, filters) => {
+    if (!filters) return restaurants;
+    let filtered = restaurants;
+    if (filters.maxDistance < 10) {
+      filtered = filtered.filter(r => (r.distanceMi ?? 0) <= filters.maxDistance);
+    }
+    if (filters.priceRange) {
+      const priceLevels = { '$': 1, '$$': 2, '$$$': 3, '$$$$': 4 };
+      filtered = filtered.filter(r => {
+        const level = priceLevels[r.price] || 2;
+        return level >= filters.priceRange[0] && level <= filters.priceRange[1];
+      });
+    }
+    if (filters.selectedCuisines && filters.selectedCuisines.length > 0) {
+      filtered = filtered.filter(r => filters.selectedCuisines.includes(r.cuisine));
+    }
+    return filtered;
+  }, []);
+
+  const handleStart = async (selectedMode, filters) => {
     setMode(selectedMode);
-    if (selectedMode === 'duo') {
-      const source = availableRestaurants || FALLBACK_RESTAURANTS;
-      const id = await session.createSession(source);
+    const source = availableRestaurants || FALLBACK_RESTAURANTS;
+    const filtered = applyFilters(source, filters);
+    if (selectedMode === 'group') {
+      const id = await session.createSession(filtered.length > 0 ? filtered : source);
       if (id) {
-        setScreen('duoLink');
+        setScreen('groupLink');
       }
     } else {
-      initDeck();
+      initDeck(filtered.length > 0 ? filtered : source);
       setScreen('swiping');
     }
   };
 
-  const handleDuoContinue = () => {
+  const handleGroupContinue = () => {
     if (session.deck) {
       setDeck(session.deck);
       setCurrentIndex(0);
@@ -140,7 +170,7 @@ export default function App() {
     engineRef.current.recordSwipe(restaurant, direction);
 
     if (direction === 'right') {
-      if (mode === 'duo') {
+      if (mode === 'group') {
         const { isMatch } = await realtime.recordSwipe(restaurant.id, direction);
         if (isMatch) {
           setMatches(prev => {
@@ -153,7 +183,7 @@ export default function App() {
       } else {
         setMatches(prev => [...prev, restaurant]);
       }
-    } else if (mode === 'duo') {
+    } else if (mode === 'group') {
       await realtime.recordSwipe(restaurant.id, direction);
     }
 
@@ -213,7 +243,7 @@ export default function App() {
         <div style={{ fontSize: '48px' }}>🚫</div>
         <h2 style={{ fontSize: '22px', fontWeight: 800 }}>Session is full</h2>
         <p style={{ color: 'var(--text-secondary)', fontSize: '15px', fontWeight: 600, textAlign: 'center' }}>
-          This duo session already has two players.
+          This group session is full.
         </p>
         <button onClick={goHome} style={{
           marginTop: '12px', padding: '14px 32px', borderRadius: 'var(--radius-btn)',
@@ -228,12 +258,12 @@ export default function App() {
     return <SessionScreen onStart={handleStart} loading={restaurantsLoading} />;
   }
 
-  if (screen === 'duoLink') {
+  if (screen === 'groupLink') {
     return (
-      <DuoLinkScreen
+      <GroupLinkScreen
         sessionId={session.sessionId}
-        partnerConnected={realtime.partnerConnected}
-        onContinue={handleDuoContinue}
+        memberCount={realtime.memberCount || 1}
+        onContinue={handleGroupContinue}
         onBack={goHome}
       />
     );
@@ -275,7 +305,7 @@ export default function App() {
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           <button
-            onClick={goHome}
+            onClick={() => { haptics.navTransition(); goHome(); }}
             style={{
               width: '32px', height: '32px', borderRadius: '10px',
               border: 'none', background: 'var(--bg-surface)',
@@ -293,12 +323,12 @@ export default function App() {
             background: 'linear-gradient(135deg, var(--accent-primary), #FF8A65)',
             WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
           }}>SwipeEats</span>
-          {mode === 'duo' && (
+          {mode === 'group' && (
             <span style={{
               marginLeft: '8px', fontSize: '11px', fontWeight: 700,
               background: 'var(--accent-primary)', color: 'white',
               padding: '2px 8px', borderRadius: '6px', verticalAlign: 'middle',
-            }}>DUO</span>
+            }}>GROUP</span>
           )}
         </div>
         <span style={{ fontSize: '13px', color: 'var(--text-dim)', fontWeight: 700 }}>
@@ -393,7 +423,7 @@ export default function App() {
           </svg>
         </button>
 
-        <ShakeUpButton onShakeUp={handleShakeUp} disabled={cardsRemaining <= 1 || mode === 'duo'} />
+        <ShakeUpButton onShakeUp={handleShakeUp} disabled={cardsRemaining <= 1 || mode === 'group'} />
 
         <button
           onClick={() => { if (currentCard) { haptics.swipeRight(); handleSwipe('right'); } }}

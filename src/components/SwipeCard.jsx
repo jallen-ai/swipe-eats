@@ -145,14 +145,40 @@ export default function SwipeCard({ restaurant, onSwipe, isTop, style }) {
             draggable={false}
           />
         )}
+        {/* Gradient overlay for text readability */}
         <div style={{
           position: 'absolute',
           bottom: 0,
           left: 0,
           right: 0,
           height: '50%',
-          background: 'linear-gradient(transparent, var(--bg-card))',
+          background: 'linear-gradient(transparent, rgba(0,0,0,0.7))',
         }} />
+
+        {/* Floating info overlay on photo */}
+        <div style={{
+          position: 'absolute', bottom: '12px', left: '16px', right: '16px',
+          zIndex: 2,
+        }}>
+          <h2 style={{
+            fontSize: '24px', fontWeight: 900, color: 'white',
+            textShadow: '0 2px 8px rgba(0,0,0,0.5)',
+            lineHeight: 1.2, marginBottom: '8px',
+          }}>{restaurant.name}</h2>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <span style={{
+              background: 'rgba(255,255,255,0.2)', backdropFilter: 'blur(8px)',
+              padding: '4px 12px', borderRadius: '20px',
+              fontSize: '13px', fontWeight: 700, color: 'white',
+            }}>{restaurant.distance}</span>
+            <span style={{
+              background: 'rgba(255,255,255,0.2)', backdropFilter: 'blur(8px)',
+              padding: '4px 12px', borderRadius: '20px',
+              fontSize: '13px', fontWeight: 700, color: 'white',
+            }}>{restaurant.price}</span>
+          </div>
+        </div>
+
         {restaurant.photoAttribution && (
           <div style={{
             position: 'absolute', top: '8px', right: '8px',
@@ -209,54 +235,45 @@ export default function SwipeCard({ restaurant, onSwipe, isTop, style }) {
         padding: '20px 24px',
         display: 'flex',
         flexDirection: 'column',
-        justifyContent: 'space-between',
+        justifyContent: 'center',
+        gap: '12px',
       }}>
-        <div>
-          <h2 style={{
-            fontSize: '26px',
-            fontWeight: 800,
-            lineHeight: 1.2,
-            marginBottom: '6px',
-          }}>{restaurant.name}</h2>
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '12px',
-            marginBottom: '12px',
-          }}>
-            <span style={{
-              background: 'var(--bg-surface)',
-              padding: '4px 12px',
-              borderRadius: '20px',
-              fontSize: '14px',
-              fontWeight: 600,
-              color: 'var(--accent-secondary)',
-            }}>{restaurant.cuisine}</span>
-            <span style={{ fontSize: '14px', color: 'var(--text-secondary)', fontWeight: 600 }}>{restaurant.price}</span>
-          </div>
-        </div>
         <div style={{
           display: 'flex',
-          justifyContent: 'space-between',
           alignItems: 'center',
+          gap: '10px',
+          flexWrap: 'wrap',
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="var(--accent-primary)" stroke="none">
-              <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
-            </svg>
-            <span style={{ fontSize: '15px', fontWeight: 700 }}>{restaurant.rating}</span>
-            {restaurant.ratingCount && (
-              <span style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: 600 }}>({restaurant.ratingCount})</span>
-            )}
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-secondary)" strokeWidth="2">
-              <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/>
-              <circle cx="12" cy="10" r="3"/>
-            </svg>
-            <span style={{ fontSize: '14px', color: 'var(--text-secondary)', fontWeight: 600 }}>{restaurant.distance}</span>
-          </div>
+          <span style={{
+            background: 'var(--bg-surface)',
+            padding: '5px 14px',
+            borderRadius: '20px',
+            fontSize: '14px',
+            fontWeight: 700,
+            color: 'var(--accent-secondary)',
+          }}>{restaurant.cuisine}</span>
+          {restaurant.rating && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="var(--accent-primary)" stroke="none">
+                <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+              </svg>
+              <span style={{ fontSize: '14px', fontWeight: 700 }}>{restaurant.rating}</span>
+              {restaurant.ratingCount && (
+                <span style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: 600 }}>({restaurant.ratingCount})</span>
+              )}
+            </div>
+          )}
         </div>
+        {restaurant.address && (
+          <p style={{
+            fontSize: '13px', color: 'var(--text-dim)', fontWeight: 600,
+            lineHeight: 1.4, margin: 0,
+            display: '-webkit-box', WebkitLineClamp: 2,
+            WebkitBoxOrient: 'vertical', overflow: 'hidden',
+          }}>
+            📍 {restaurant.address}
+          </p>
+        )}
       </div>
     </div>
   );
