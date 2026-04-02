@@ -31,12 +31,13 @@ export default function SessionScreen({ onStart, loading, coords, onLocationChan
     setLocationLoading(true);
     setLocationError(null);
     try {
-      const resp = await supabase.functions.invoke('geocode', {
+      const resp = await supabase.functions.invoke('clever-api', {
         body: { query: locationQuery.trim() },
       });
+      console.log('Geocode response:', JSON.stringify({ error: resp.error, data: resp.data }));
       const result = resp.data;
       if (resp.error || !result?.lat) {
-        setLocationError(result?.error || 'Location not found');
+        setLocationError(result?.error || resp.error?.message || 'Location not found');
         return;
       }
       setLocationName(resp.data.formattedAddress);
