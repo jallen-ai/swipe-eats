@@ -3,9 +3,10 @@ import { useState } from 'react';
 export default function DuoLinkScreen({ sessionId, partnerConnected, onContinue, onBack }) {
   const [copied, setCopied] = useState(false);
 
-  // Use current origin for the shareable link (works in dev and prod)
-  const link = `${window.location.origin}/s/${sessionId}`;
-  const displayLink = `${window.location.host}/s/${sessionId}`;
+  // Use current origin + base path for the shareable link (works in dev and prod)
+  const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+  const link = `${window.location.origin}${base}/s/${sessionId}`;
+  const displayLink = `${window.location.host}${base}/s/${sessionId}`;
 
   const copyLink = () => {
     navigator.clipboard?.writeText(link);

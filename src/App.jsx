@@ -19,9 +19,11 @@ import ReviewMatchesScreen from './components/ReviewMatchesScreen';
 import ChooseForMeAnimation from './components/ChooseForMeAnimation';
 import SwipeFilterDrawer from './components/SwipeFilterDrawer';
 
-// Check if this is a join link: /s/{sessionId}
+// Check if this is a join link: /s/{sessionId} (accounting for base path)
 function getJoinSessionId() {
-  const match = window.location.pathname.match(/^\/s\/([a-z0-9]+)$/i);
+  const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+  const re = new RegExp(`^${base.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\/s\\/([a-z0-9]+)$`, 'i');
+  const match = window.location.pathname.match(re);
   return match ? match[1] : null;
 }
 
@@ -127,8 +129,9 @@ export default function App() {
     setMatchNotif(null);
     setCurrentIndex(0);
     setDeck([]);
-    if (window.location.pathname !== '/') {
-      window.history.replaceState(null, '', '/');
+    const basePath = import.meta.env.BASE_URL.replace(/\/$/, '') || '/';
+    if (window.location.pathname !== basePath) {
+      window.history.replaceState(null, '', basePath);
     }
   };
 

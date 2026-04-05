@@ -4,8 +4,9 @@ import { haptics } from '../utils/haptics';
 export default function GroupLinkScreen({ sessionId, memberCount, onContinue, onBack }) {
   const [copied, setCopied] = useState(false);
 
-  const link = `${window.location.origin}/s/${sessionId}`;
-  const displayLink = `${window.location.host}/s/${sessionId}`;
+  const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+  const link = `${window.location.origin}${base}/s/${sessionId}`;
+  const displayLink = `${window.location.host}${base}/s/${sessionId}`;
   const hasMembers = memberCount > 1;
 
   const copyLink = () => {
