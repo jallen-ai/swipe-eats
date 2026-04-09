@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react';
 import { supabase, getUserId } from '../utils/supabase';
 import { PreferenceEngine } from '../utils/PreferenceEngine';
 import { fetchRestaurantsByIds } from './useRestaurants';
+import { FALLBACK_RESTAURANTS } from '../data/restaurants';
 import { getCuisineColor, formatPriceLevel, getCuisineGroup, calcDistanceMi, formatDistance } from '../utils/cuisine';
 
 function generateSessionId() {
@@ -192,8 +193,24 @@ export function useSession() {
       return [];
     }
 
+    // Try DB first
     const rows = await fetchRestaurantsByIds(ids);
-    const mapped = rows.map(r => mapDbRestaurant(r, userLat, userLng));
+    let mapped;
+
+    if (rows.length > 0) {
+      mapped = rows.map(r => mapDbRestaurant(r, userLat, userLng));
+    } else {
+      // Fallback: IDs might be from hardcoded fallback restaurants (not in DB)
+      const fallbackById = Object.fromEntries(FALLBACK_RESTAURANTS.map(r => [r.id, r]));
+      mapped = ids.map(id => fallbackById[id]).filter(Boolean).map(r => {
+        if (userLat != null && userLng != null && r.lat && r.lng) {
+          const dist = calcDistanceMi(userLat, userLng, r.lat, r.lng);
+          return { ...r, distance: formatDistance(dist), distanceMi: dist };
+        }
+        return { ...r, distance: r.distance || '—' };
+      });
+    }
+
     const byId = Object.fromEntries(mapped.map(r => [r.id, r]));
     const ordered = ids.map(id => byId[id]).filter(Boolean);
     setDeck(ordered);
