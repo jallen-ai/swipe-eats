@@ -6,7 +6,7 @@ const PRICE_LABELS = ['$', '$$', '$$$', '$$$$'];
 
 export default function SessionScreen({ onStart, loading, coords, onLocationChange }) {
   const [showFilters, setShowFilters] = useState(false);
-  const [maxDistance, setMaxDistance] = useState(20);
+  const [maxDistance, setMaxDistance] = useState(5);
   const [selectedPrices, setSelectedPrices] = useState([]); // empty = all
   const [openNow, setOpenNow] = useState(true);
 

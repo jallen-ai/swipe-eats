@@ -42,7 +42,7 @@ export default function App() {
   const [cardKey, setCardKey] = useState(0);
   const [choosingForMe, setChoosingForMe] = useState(false);
   const [showSwipeFilters, setShowSwipeFilters] = useState(false);
-  const [activeFilters, setActiveFilters] = useState({ maxDistance: 20, selectedPrices: [], openNow: true });
+  const [activeFilters, setActiveFilters] = useState({ maxDistance: 5, selectedPrices: [], openNow: true });
 
   const session = useSession();
   const isGroupActive = mode === 'group' && (session.sessionStatus === 'active' || session.sessionStatus === 'waiting');
