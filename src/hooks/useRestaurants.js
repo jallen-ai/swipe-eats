@@ -84,16 +84,11 @@ export function useRestaurants() {
         return;
       }
 
-      const excludeTypes = new Set([
-        'hotel', 'lodging', 'motel', 'resort_hotel', 'extended_stay_hotel',
-        'convenience_store', 'gas_station', 'grocery_store', 'supermarket',
-        'liquor_store', 'drugstore', 'pharmacy',
+      const excludeCuisines = new Set([
+        'Convenience Store', 'Gas Station', 'Shopping Mall', 'Pharmacy', 'Drugstore',
       ]);
       const mapped = data.restaurants
-        .filter((r) => {
-          const types = r.types || [];
-          return !types.some((t) => excludeTypes.has(t));
-        })
+        .filter((r) => !excludeCuisines.has(r.cuisine))
         .map((r) => mapRestaurant(r, lat, lng))
         .filter((r) => r.photo) // Only show restaurants with photos
         .sort((a, b) => (a.distanceMi ?? 999) - (b.distanceMi ?? 999));
