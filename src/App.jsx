@@ -43,6 +43,8 @@ export default function App() {
   const [choosingForMe, setChoosingForMe] = useState(false);
   const [showSwipeFilters, setShowSwipeFilters] = useState(false);
   const [activeFilters, setActiveFilters] = useState({ maxDistance: 5, selectedPrices: [], openNow: true });
+  const [showMatchPrompt, setShowMatchPrompt] = useState(false);
+  const matchPromptShownRef = useRef(false);
 
   const session = useSession();
   const isGroupActive = mode === 'group' && (session.sessionStatus === 'active' || session.sessionStatus === 'waiting');
@@ -117,6 +119,15 @@ export default function App() {
     }
   }, [realtime.newPartnerMatch, realtime.clearPartnerMatch, matches, deck]);
 
+  // Prompt at 5 matches
+  useEffect(() => {
+    if (matches.length >= 5 && !matchPromptShownRef.current && screen === 'swiping') {
+      matchPromptShownRef.current = true;
+      // Small delay so the match notification can show first
+      setTimeout(() => setShowMatchPrompt(true), 800);
+    }
+  }, [matches.length, screen]);
+
   const initDeck = useCallback((restaurantList) => {
     const source = restaurantList || availableRestaurants || FALLBACK_RESTAURANTS;
     const sorted = engineRef.current.sortRestaurants(source);
@@ -133,6 +144,8 @@ export default function App() {
     setMatchNotif(null);
     setCurrentIndex(0);
     setDeck([]);
+    setShowMatchPrompt(false);
+    matchPromptShownRef.current = false;
     const basePath = import.meta.env.BASE_URL.replace(/\/$/, '') || '/';
     if (window.location.pathname !== basePath) {
       window.history.replaceState(null, '', basePath);
@@ -143,7 +156,7 @@ export default function App() {
     if (!filters) return restaurants;
     let filtered = restaurants;
     if (filters.maxDistance < 20) {
-      filtered = filtered.filter(r => (r.distanceMi ?? 0) <= filters.maxDistance);
+      filtered = filtered.filter(r => r.distanceMi != null && r.distanceMi <= filters.maxDistance);
     }
     if (filters.selectedPrices && filters.selectedPrices.length > 0) {
       const priceLevels = { '$': 1, '$$': 2, '$$$': 3, '$$$$': 4 };
@@ -167,12 +180,12 @@ export default function App() {
     const source = availableRestaurants || FALLBACK_RESTAURANTS;
     const filtered = applyFilters(source, filters);
     if (selectedMode === 'group') {
-      const id = await session.createSession(filtered.length > 0 ? filtered : source);
+      const id = await session.createSession(filtered);
       if (id) {
         setScreen('groupLink');
       }
     } else {
-      initDeck(filtered.length > 0 ? filtered : source);
+      initDeck(filtered);
       setScreen('swiping');
     }
   };
@@ -406,9 +419,6 @@ export default function App() {
           )}
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <span style={{ fontSize: '13px', color: 'var(--text-dim)', fontWeight: 700 }}>
-            {cardsRemaining > 0 ? `${cardsRemaining} left` : ''}
-          </span>
           {mode !== 'group' && (
             <button
               onClick={() => { haptics.filterTap(); setShowSwipeFilters(true); }}
@@ -554,6 +564,57 @@ export default function App() {
           onApply={handleSwipeFilterApply}
           onClose={() => setShowSwipeFilters(false)}
         />
+      )}
+
+      {/* Match prompt at 5 matches */}
+      {showMatchPrompt && (
+        <div style={{
+          position: 'absolute', inset: 0, zIndex: 100,
+          background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          padding: '32px',
+          animation: 'fadeIn 0.3s ease-out',
+        }}>
+          <div style={{
+            background: 'var(--bg-card)', borderRadius: '20px',
+            padding: '28px', width: '100%', maxWidth: '340px',
+            textAlign: 'center',
+          }}>
+            <div style={{ fontSize: '40px', marginBottom: '12px' }}>🎉</div>
+            <h3 style={{ fontSize: '20px', fontWeight: 800, marginBottom: '8px' }}>
+              {matches.length} matches!
+            </h3>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '14px', fontWeight: 600, marginBottom: '24px' }}>
+              Ready to pick a restaurant, or want to keep swiping?
+            </p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              <button
+                onClick={() => { haptics.medium(); setShowMatchPrompt(false); handleViewMatches(); }}
+                style={{
+                  width: '100%', padding: '14px', borderRadius: 'var(--radius-btn)',
+                  border: 'none',
+                  background: 'linear-gradient(135deg, var(--accent-primary), #FF7043)',
+                  color: 'white', fontSize: '16px', fontWeight: 800,
+                  cursor: 'pointer', fontFamily: 'Nunito',
+                  boxShadow: '0 4px 16px var(--accent-primary-glow)',
+                }}
+              >
+                Review Matches
+              </button>
+              <button
+                onClick={() => { haptics.light(); setShowMatchPrompt(false); }}
+                style={{
+                  width: '100%', padding: '14px', borderRadius: 'var(--radius-btn)',
+                  border: '1px solid var(--bg-surface)', background: 'transparent',
+                  color: 'var(--text-secondary)', fontSize: '15px', fontWeight: 700,
+                  cursor: 'pointer', fontFamily: 'Nunito',
+                }}
+              >
+                Keep Swiping
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
