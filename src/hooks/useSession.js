@@ -76,11 +76,12 @@ export function useSession() {
     return id;
   }, []);
 
+  // Returns { success, deck } so the caller can set deck synchronously
   const joinSession = useCallback(async (id) => {
     const userId = await getUserId();
     if (!userId) {
       setSessionError('Not authenticated');
-      return false;
+      return { success: false };
     }
 
     const { data: session, error: fetchError } = await supabase
@@ -92,13 +93,13 @@ export function useSession() {
     if (fetchError || !session) {
       setSessionError('Session not found');
       setSessionStatus('error');
-      return false;
+      return { success: false };
     }
 
     if (new Date(session.expires_at) < new Date()) {
       setSessionStatus('expired');
       setSessionError('Session has expired');
-      return false;
+      return { success: false };
     }
 
     if (session.creator_id === userId) {
@@ -106,15 +107,14 @@ export function useSession() {
       setDeckIds(session.deck_ids);
       setIsCreator(true);
       setSessionStatus(session.status);
-      // Fetch restaurants from DB to rebuild deck
-      await buildDeckFromIds(session.deck_ids);
-      return true;
+      const builtDeck = await buildDeckFromIds(session.deck_ids);
+      return { success: true, deck: builtDeck };
     }
 
     if (session.partner_id && session.partner_id !== userId) {
       setSessionStatus('full');
       setSessionError('Session is full');
-      return false;
+      return { success: false };
     }
 
     if (session.partner_id === userId) {
@@ -122,8 +122,8 @@ export function useSession() {
       setDeckIds(session.deck_ids);
       setIsCreator(false);
       setSessionStatus(session.status);
-      await buildDeckFromIds(session.deck_ids);
-      return true;
+      const builtDeck = await buildDeckFromIds(session.deck_ids);
+      return { success: true, deck: builtDeck };
     }
 
     const { error: updateError } = await supabase
@@ -136,22 +136,22 @@ export function useSession() {
     if (updateError) {
       setSessionError('Could not join session');
       setSessionStatus('error');
-      return false;
+      return { success: false };
     }
 
     setSessionId(id);
     setDeckIds(session.deck_ids);
     setIsCreator(false);
     setSessionStatus('active');
-    await buildDeckFromIds(session.deck_ids);
-    return true;
+    const builtDeck = await buildDeckFromIds(session.deck_ids);
+    return { success: true, deck: builtDeck };
   }, []);
 
   // Fetch restaurant data from DB and order by deck_ids
   const buildDeckFromIds = async (ids) => {
     if (!ids || ids.length === 0) {
       setDeck([]);
-      return;
+      return [];
     }
 
     const rows = await fetchRestaurantsByIds(ids);
@@ -160,6 +160,7 @@ export function useSession() {
     const byId = Object.fromEntries(mapped.map(r => [r.id, r]));
     const ordered = ids.map(id => byId[id]).filter(Boolean);
     setDeck(ordered);
+    return ordered;
   };
 
   const activateSession = useCallback(() => {

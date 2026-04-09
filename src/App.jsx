@@ -74,8 +74,11 @@ export default function App() {
   // Handle join links on mount
   useEffect(() => {
     if (initialJoinId) {
-      session.joinSession(initialJoinId).then(success => {
-        if (success) {
+      session.joinSession(initialJoinId).then(result => {
+        if (result.success && result.deck) {
+          setDeck(result.deck);
+          setCurrentIndex(0);
+          setCardKey(k => k + 1);
           setScreen('swiping');
         } else {
           setMode(null);
