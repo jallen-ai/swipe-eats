@@ -18,6 +18,7 @@ import LockInScreen from './components/LockInScreen';
 import ReviewMatchesScreen from './components/ReviewMatchesScreen';
 import ChooseForMeAnimation from './components/ChooseForMeAnimation';
 import SwipeFilterDrawer from './components/SwipeFilterDrawer';
+import GroupMembersPanel from './components/GroupMembersPanel';
 
 // Check if this is a join link: /s/{sessionId} (accounting for base path)
 function getJoinSessionId() {
@@ -44,6 +45,7 @@ export default function App() {
   const [showSwipeFilters, setShowSwipeFilters] = useState(false);
   const [activeFilters, setActiveFilters] = useState({ maxDistance: 5, selectedPrices: [], openNow: true });
   const [showMatchPrompt, setShowMatchPrompt] = useState(false);
+  const [showGroupPanel, setShowGroupPanel] = useState(false);
   const matchPromptShownRef = useRef(false);
 
   const session = useSession();
@@ -83,13 +85,33 @@ export default function App() {
     session.joinSession(initialJoinId, coords).then(result => {
       if (result.success && result.deck) {
         setDeck(result.deck);
-        setCurrentIndex(0);
         setCardKey(k => k + 1);
-        // If session is already active (rejoining), go straight to swiping
-        if (result.status === 'active') {
+
+        // Resume: skip past already-swiped cards
+        if (result.swipedIds && result.swipedIds.size > 0) {
+          let resumeIndex = 0;
+          for (let i = 0; i < result.deck.length; i++) {
+            if (result.swipedIds.has(result.deck[i].id)) {
+              resumeIndex = i + 1;
+            } else {
+              break;
+            }
+          }
+          setCurrentIndex(resumeIndex);
+
+          // Rebuild matches from DB
+          if (result.matchIds && result.matchIds.size > 0) {
+            const restoredMatches = result.deck.filter(r => result.matchIds.has(r.id));
+            setMatches(restoredMatches);
+          }
+        } else {
+          setCurrentIndex(0);
+        }
+
+        // Returning users who already started → go straight to swiping
+        if (result.isReturning && result.status === 'active') {
           setScreen('swiping');
         } else {
-          // Show the lobby as a joiner waiting for host to start
           setScreen('groupLink');
         }
       } else {
@@ -149,6 +171,7 @@ export default function App() {
     setCurrentIndex(0);
     setDeck([]);
     setShowMatchPrompt(false);
+    setShowGroupPanel(false);
     matchPromptShownRef.current = false;
     const basePath = import.meta.env.BASE_URL.replace(/\/$/, '') || '/';
     if (window.location.pathname !== basePath) {
@@ -194,7 +217,14 @@ export default function App() {
     }
   };
 
-  const handleGroupContinue = async () => {
+  const handleGroupContinue = async (nickname) => {
+    // Save nickname if provided (creator sets it here, joiner sets it before joining)
+    if (nickname && session.isCreator) {
+      await session.updateNickname(nickname);
+    }
+    if (!session.isCreator && nickname) {
+      await session.updateNickname(nickname);
+    }
     if (session.deck) {
       setDeck(session.deck);
       setCurrentIndex(0);
@@ -420,11 +450,22 @@ export default function App() {
             WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
           }}>SwipeEats</span>
           {mode === 'group' && (
-            <span style={{
-              marginLeft: '8px', fontSize: '11px', fontWeight: 700,
-              background: 'var(--accent-primary)', color: 'white',
-              padding: '2px 8px', borderRadius: '6px', verticalAlign: 'middle',
-            }}>GROUP</span>
+            <button
+              onClick={() => { haptics.light(); setShowGroupPanel(true); }}
+              style={{
+                marginLeft: '8px', fontSize: '11px', fontWeight: 700,
+                background: 'var(--accent-primary)', color: 'white',
+                padding: '2px 8px', borderRadius: '6px',
+                border: 'none', cursor: 'pointer',
+                display: 'flex', alignItems: 'center', gap: '4px',
+                fontFamily: 'Nunito',
+              }}
+            >
+              GROUP
+              <span style={{ fontSize: '11px' }}>
+                {realtime.members.length > 0 ? ` ${realtime.members.length}` : ''}
+              </span>
+            </button>
           )}
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -572,6 +613,16 @@ export default function App() {
           filters={activeFilters}
           onApply={handleSwipeFilterApply}
           onClose={() => setShowSwipeFilters(false)}
+        />
+      )}
+
+      {/* Group members panel */}
+      {showGroupPanel && mode === 'group' && (
+        <GroupMembersPanel
+          members={realtime.members}
+          creatorId={session.creatorId}
+          deckSize={deck.length}
+          onClose={() => setShowGroupPanel(false)}
         />
       )}
 

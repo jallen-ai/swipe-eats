@@ -3,6 +3,7 @@ import { haptics } from '../utils/haptics';
 
 export default function GroupLinkScreen({ sessionId, memberCount, onContinue, onBack, isJoiner }) {
   const [copied, setCopied] = useState(false);
+  const [nickname, setNickname] = useState('');
 
   const base = import.meta.env.BASE_URL.replace(/\/$/, '');
   const link = `${window.location.origin}${base}/s/${sessionId}`;
@@ -41,7 +42,7 @@ export default function GroupLinkScreen({ sessionId, memberCount, onContinue, on
       justifyContent: 'center',
       alignItems: 'center',
       padding: '32px',
-      gap: '24px',
+      gap: '20px',
       position: 'relative',
     }}>
       <button
@@ -74,6 +75,33 @@ export default function GroupLinkScreen({ sessionId, memberCount, onContinue, on
             ? 'Everyone swipes independently. Restaurants the group agrees on become matches!'
             : 'Share this link with friends. Everyone gets the same restaurants to swipe through.'}
       </p>
+
+      {/* Nickname input */}
+      <div style={{ width: '100%' }}>
+        <input
+          type="text"
+          value={nickname}
+          onChange={e => setNickname(e.target.value)}
+          placeholder="Your name (optional)"
+          maxLength={20}
+          style={{
+            width: '100%',
+            padding: '14px 16px',
+            borderRadius: 'var(--radius-btn)',
+            border: '1px solid var(--bg-surface)',
+            background: 'var(--bg-card)',
+            color: 'var(--text-primary)',
+            fontSize: '16px',
+            fontWeight: 600,
+            fontFamily: 'Nunito',
+            outline: 'none',
+            boxSizing: 'border-box',
+            textAlign: 'center',
+          }}
+          onFocus={e => e.target.style.borderColor = 'var(--accent-primary)'}
+          onBlur={e => e.target.style.borderColor = 'var(--bg-surface)'}
+        />
+      </div>
 
       {/* Link copy + share buttons (creator only) */}
       {!isJoiner && (
@@ -148,7 +176,7 @@ export default function GroupLinkScreen({ sessionId, memberCount, onContinue, on
       )}
 
       <button
-        onClick={() => { haptics.medium(); onContinue(); }}
+        onClick={() => { haptics.medium(); onContinue(nickname.trim() || null); }}
         style={{
           width: '100%',
           padding: '18px',

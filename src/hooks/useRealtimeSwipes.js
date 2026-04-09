@@ -9,14 +9,58 @@ export function useRealtimeSwipes(sessionId, isActive) {
   const [memberCount, setMemberCount] = useState(1);
   const [newPartnerMatch, setNewPartnerMatch] = useState(null);
   const [sessionStarted, setSessionStarted] = useState(false);
+  // Persistent members from DB: [{ user_id, nickname, joined_at, swipe_count, isOnline }]
+  const [members, setMembers] = useState([]);
   const myRightSwipesRef = useRef(new Set());
   const myUserIdRef = useRef(null);
   const channelRef = useRef(null);
   const prevMemberCountRef = useRef(1);
+  const onlineUsersRef = useRef(new Set());
 
   useEffect(() => {
     getUserId().then(id => { myUserIdRef.current = id; });
   }, []);
+
+  // Load members from DB
+  const fetchMembers = useCallback(async () => {
+    if (!sessionId) return;
+
+    // Fetch members
+    const { data: memberRows } = await supabase
+      .from('session_members')
+      .select('user_id, nickname, joined_at')
+      .eq('session_id', sessionId)
+      .order('joined_at', { ascending: true });
+
+    if (!memberRows) return;
+
+    // Fetch swipe counts per user
+    const { data: swipes } = await supabase
+      .from('swipes')
+      .select('user_id')
+      .eq('session_id', sessionId);
+
+    const countMap = {};
+    for (const s of (swipes || [])) {
+      countMap[s.user_id] = (countMap[s.user_id] || 0) + 1;
+    }
+
+    const online = onlineUsersRef.current;
+    setMembers(memberRows.map(m => ({
+      user_id: m.user_id,
+      nickname: m.nickname,
+      joined_at: m.joined_at,
+      swipe_count: countMap[m.user_id] || 0,
+      isOnline: online.has(m.user_id),
+    })));
+  }, [sessionId]);
+
+  // Initial member load
+  useEffect(() => {
+    if (sessionId && isActive) {
+      fetchMembers();
+    }
+  }, [sessionId, isActive, fetchMembers]);
 
   // Catch-up: load existing swipes when joining/reconnecting
   useEffect(() => {
@@ -55,7 +99,7 @@ export function useRealtimeSwipes(sessionId, isActive) {
     catchUp();
   }, [sessionId, isActive]);
 
-  // Subscribe to realtime swipes + presence
+  // Subscribe to realtime swipes + presence + members
   useEffect(() => {
     if (!sessionId || !isActive) return;
 
@@ -70,7 +114,16 @@ export function useRealtimeSwipes(sessionId, isActive) {
         filter: `session_id=eq.${sessionId}`,
       }, (payload) => {
         const swipe = payload.new;
-        if (!swipe || swipe.user_id === myUserIdRef.current) return;
+        if (!swipe) return;
+
+        // Update member swipe counts
+        setMembers(prev => prev.map(m =>
+          m.user_id === swipe.user_id
+            ? { ...m, swipe_count: m.swipe_count + 1 }
+            : m
+        ));
+
+        if (swipe.user_id === myUserIdRef.current) return;
 
         if (swipe.direction === 'right') {
           setOtherRightSwipes(prev => {
@@ -82,21 +135,49 @@ export function useRealtimeSwipes(sessionId, isActive) {
             return next;
           });
 
-          // Check if I also swiped right → it's a match
           if (myRightSwipesRef.current.has(swipe.restaurant_id)) {
             setNewPartnerMatch(swipe.restaurant_id);
           }
         }
+      })
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'session_members',
+        filter: `session_id=eq.${sessionId}`,
+      }, (payload) => {
+        const member = payload.new;
+        if (!member) return;
+        setMembers(prev => {
+          if (prev.find(m => m.user_id === member.user_id)) return prev;
+          return [...prev, {
+            user_id: member.user_id,
+            nickname: member.nickname,
+            joined_at: member.joined_at,
+            swipe_count: 0,
+            isOnline: onlineUsersRef.current.has(member.user_id),
+          }];
+        });
+        haptics.memberJoin();
       })
       .on('presence', { event: 'sync' }, () => {
         const state = channel.presenceState();
         const users = Object.values(state).flat();
         const otherUsers = users.filter(u => u.user_id !== myUserIdRef.current);
         setPartnerConnected(otherUsers.length > 0);
+
+        const onlineSet = new Set(users.map(u => u.user_id));
+        onlineUsersRef.current = onlineSet;
+
+        // Update member online status
+        setMembers(prev => prev.map(m => ({
+          ...m,
+          isOnline: onlineSet.has(m.user_id),
+        })));
+
         const total = users.length;
         setMemberCount(total);
 
-        // Haptic when new member joins
         if (total > prevMemberCountRef.current) {
           haptics.memberJoin();
         }
@@ -117,7 +198,6 @@ export function useRealtimeSwipes(sessionId, isActive) {
     };
   }, [sessionId, isActive]);
 
-  // Record a swipe to the database
   const recordSwipe = useCallback(async (restaurantId, direction) => {
     const userId = myUserIdRef.current;
     if (!userId || !sessionId) return { isMatch: false };
@@ -137,7 +217,6 @@ export function useRealtimeSwipes(sessionId, isActive) {
       console.error('Failed to record swipe:', error.message);
     }
 
-    // Check if any other member already swiped right on this
     const voters = otherRightSwipes.get(restaurantId);
     const isMatch = direction === 'right' && voters && voters.size > 0;
     return { isMatch };
@@ -157,6 +236,7 @@ export function useRealtimeSwipes(sessionId, isActive) {
     otherRightSwipes,
     partnerConnected,
     memberCount,
+    members,
     newPartnerMatch,
     sessionStarted,
     broadcastStart,

@@ -10,7 +10,7 @@ function generateSessionId() {
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 
-// Map a DB restaurant row to app shape (for duo partner lookups)
+// Map a DB restaurant row to app shape
 function mapDbRestaurant(row, userLat, userLng) {
   const distance = (userLat != null && userLng != null)
     ? calcDistanceMi(userLat, userLng, parseFloat(row.lat), parseFloat(row.lng))
@@ -45,15 +45,15 @@ export function useSession() {
   const [deckIds, setDeckIds] = useState(null);
   const [isCreator, setIsCreator] = useState(false);
   const [deck, setDeck] = useState(null);
+  const [creatorId, setCreatorId] = useState(null);
 
-  const createSession = useCallback(async (restaurants) => {
+  const createSession = useCallback(async (restaurants, nickname) => {
     const userId = await getUserId();
     if (!userId) {
       setSessionError('Not authenticated');
       return null;
     }
 
-    // Compute deck order from provided restaurants
     const engine = new PreferenceEngine();
     const sorted = engine.sortRestaurants(restaurants);
     const orderedIds = sorted.map(r => r.id);
@@ -72,17 +72,23 @@ export function useSession() {
       return null;
     }
 
+    // Register creator as a session member
+    await supabase.from('session_members').insert({
+      session_id: id,
+      user_id: userId,
+      nickname: nickname || null,
+    });
+
     setSessionId(id);
     setSessionStatus('waiting');
     setDeckIds(orderedIds);
     setIsCreator(true);
-    // Store the ordered deck directly (creator already has the restaurant data)
+    setCreatorId(userId);
     setDeck(sorted);
     return id;
   }, []);
 
-  // Returns { success, deck } so the caller can set deck synchronously
-  const joinSession = useCallback(async (id, userCoords) => {
+  const joinSession = useCallback(async (id, userCoords, nickname) => {
     const userLat = userCoords?.lat ?? null;
     const userLng = userCoords?.lng ?? null;
     const userId = await getUserId();
@@ -109,52 +115,77 @@ export function useSession() {
       return { success: false };
     }
 
-    if (session.creator_id === userId) {
-      setSessionId(id);
-      setDeckIds(session.deck_ids);
-      setIsCreator(true);
-      setSessionStatus(session.status);
-      const builtDeck = await buildDeckFromIds(session.deck_ids, userLat, userLng);
-      return { success: true, deck: builtDeck, status: session.status };
+    // Check if already a member
+    const { data: existingMember } = await supabase
+      .from('session_members')
+      .select('user_id')
+      .eq('session_id', id)
+      .eq('user_id', userId)
+      .single();
+
+    const isReturning = !!existingMember;
+    const amCreator = session.creator_id === userId;
+
+    if (!isReturning) {
+      // Register as a new member
+      await supabase.from('session_members').insert({
+        session_id: id,
+        user_id: userId,
+        nickname: nickname || null,
+      });
+
+      // Activate session when first non-creator joins
+      if (session.status === 'waiting' && !amCreator) {
+        await supabase.from('sessions')
+          .update({ status: 'active' })
+          .eq('id', id)
+          .eq('status', 'waiting');
+      }
     }
 
-    if (session.partner_id && session.partner_id !== userId) {
-      setSessionStatus('full');
-      setSessionError('Session is full');
-      return { success: false };
-    }
-
-    if (session.partner_id === userId) {
-      setSessionId(id);
-      setDeckIds(session.deck_ids);
-      setIsCreator(false);
-      setSessionStatus(session.status);
-      const builtDeck = await buildDeckFromIds(session.deck_ids, userLat, userLng);
-      return { success: true, deck: builtDeck, status: session.status };
-    }
-
-    const { error: updateError } = await supabase
-      .from('sessions')
-      .update({ partner_id: userId, status: 'active' })
-      .eq('id', id)
-      .eq('status', 'waiting')
-      .is('partner_id', null);
-
-    if (updateError) {
-      setSessionError('Could not join session');
-      setSessionStatus('error');
-      return { success: false };
-    }
+    const currentStatus = (!isReturning && session.status === 'waiting' && !amCreator)
+      ? 'active' : session.status;
 
     setSessionId(id);
     setDeckIds(session.deck_ids);
-    setIsCreator(false);
-    setSessionStatus('active');
+    setIsCreator(amCreator);
+    setCreatorId(session.creator_id);
+    setSessionStatus(currentStatus);
+
     const builtDeck = await buildDeckFromIds(session.deck_ids, userLat, userLng);
-    return { success: true, deck: builtDeck, status: 'active' };
+
+    // Fetch existing swipes for this user (for resume)
+    const { data: mySwipes } = await supabase
+      .from('swipes')
+      .select('restaurant_id, direction')
+      .eq('session_id', id)
+      .eq('user_id', userId);
+
+    const swipedIds = new Set((mySwipes || []).map(s => s.restaurant_id));
+    const myRightSwipes = new Set((mySwipes || []).filter(s => s.direction === 'right').map(s => s.restaurant_id));
+
+    // Fetch all right swipes from others (for rebuilding matches)
+    const { data: otherSwipes } = await supabase
+      .from('swipes')
+      .select('restaurant_id, user_id, direction')
+      .eq('session_id', id)
+      .neq('user_id', userId)
+      .eq('direction', 'right');
+
+    const otherRightIds = new Set((otherSwipes || []).map(s => s.restaurant_id));
+    // Matches = restaurants I swiped right AND at least one other person swiped right
+    const matchIds = new Set([...myRightSwipes].filter(rid => otherRightIds.has(rid)));
+
+    return {
+      success: true,
+      deck: builtDeck,
+      status: currentStatus,
+      swipedIds,
+      matchIds,
+      isReturning,
+    };
   }, []);
 
-  // Fetch restaurant data from DB and order by deck_ids
   const buildDeckFromIds = async (ids, userLat, userLng) => {
     if (!ids || ids.length === 0) {
       setDeck([]);
@@ -163,7 +194,6 @@ export function useSession() {
 
     const rows = await fetchRestaurantsByIds(ids);
     const mapped = rows.map(r => mapDbRestaurant(r, userLat, userLng));
-    // Preserve the deck order from deck_ids
     const byId = Object.fromEntries(mapped.map(r => [r.id, r]));
     const ordered = ids.map(id => byId[id]).filter(Boolean);
     setDeck(ordered);
@@ -187,6 +217,16 @@ export function useSession() {
     setSessionStatus('active');
   }, [sessionId]);
 
+  const updateNickname = useCallback(async (nickname) => {
+    if (!sessionId) return;
+    const userId = await getUserId();
+    if (!userId) return;
+    await supabase.from('session_members')
+      .update({ nickname })
+      .eq('session_id', sessionId)
+      .eq('user_id', userId);
+  }, [sessionId]);
+
   return {
     sessionId,
     sessionStatus,
@@ -194,9 +234,11 @@ export function useSession() {
     deck,
     deckIds,
     isCreator,
+    creatorId,
     createSession,
     joinSession,
     activateSession,
     startSession,
+    updateNickname,
   };
 }

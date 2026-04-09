@@ -78,7 +78,7 @@ CREATE POLICY "Partner can join or creator can update"
     OR partner_id = auth.uid()
   );
 
--- Swipes: INSERT
+-- Swipes: INSERT (must be a session member and session must be active)
 CREATE POLICY "Users can insert own swipes in active sessions"
   ON swipes FOR INSERT
   WITH CHECK (
@@ -86,23 +86,55 @@ CREATE POLICY "Users can insert own swipes in active sessions"
     AND EXISTS (
       SELECT 1 FROM sessions
       WHERE id = session_id
-      AND (creator_id = auth.uid() OR partner_id = auth.uid())
       AND status = 'active'
+    )
+    AND EXISTS (
+      SELECT 1 FROM session_members
+      WHERE session_id = swipes.session_id
+      AND user_id = auth.uid()
     )
   );
 
--- Swipes: SELECT
+-- Swipes: SELECT (must be a session member)
 CREATE POLICY "Users can read swipes in their sessions"
   ON swipes FOR SELECT
   USING (
     EXISTS (
-      SELECT 1 FROM sessions
-      WHERE id = session_id
-      AND (creator_id = auth.uid() OR partner_id = auth.uid())
+      SELECT 1 FROM session_members
+      WHERE session_id = swipes.session_id
+      AND user_id = auth.uid()
     )
   );
 
 -- ============================================================
--- Enable Realtime on swipes table
+-- Session Members table (persistent group membership + nicknames)
+-- ============================================================
+
+CREATE TABLE session_members (
+  session_id  TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+  user_id     UUID NOT NULL,
+  nickname    TEXT,
+  joined_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY (session_id, user_id)
+);
+
+CREATE INDEX idx_session_members_session ON session_members(session_id);
+
+ALTER TABLE session_members ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Anyone can view members of sessions they know about"
+  ON session_members FOR SELECT USING (true);
+
+CREATE POLICY "Users can insert themselves"
+  ON session_members FOR INSERT
+  WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can update their own row"
+  ON session_members FOR UPDATE
+  USING (auth.uid() = user_id);
+
+-- ============================================================
+-- Enable Realtime on swipes and session_members tables
 -- ============================================================
 ALTER PUBLICATION supabase_realtime ADD TABLE swipes;
+ALTER PUBLICATION supabase_realtime ADD TABLE session_members;
