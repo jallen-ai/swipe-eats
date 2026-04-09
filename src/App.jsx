@@ -73,22 +73,31 @@ export default function App() {
     }).sort((a, b) => (a.distanceMi ?? 999) - (b.distanceMi ?? 999));
   })();
 
-  // Handle join links on mount
+  // Handle join links on mount — wait for coords so distances are accurate
+  const joinAttemptedRef = useRef(false);
   useEffect(() => {
-    if (initialJoinId) {
-      session.joinSession(initialJoinId).then(result => {
-        if (result.success && result.deck) {
-          setDeck(result.deck);
-          setCurrentIndex(0);
-          setCardKey(k => k + 1);
+    if (!initialJoinId || joinAttemptedRef.current) return;
+    if (!coords) return; // wait for geolocation
+    joinAttemptedRef.current = true;
+
+    session.joinSession(initialJoinId, coords).then(result => {
+      if (result.success && result.deck) {
+        setDeck(result.deck);
+        setCurrentIndex(0);
+        setCardKey(k => k + 1);
+        // If session is already active (rejoining), go straight to swiping
+        if (result.status === 'active') {
           setScreen('swiping');
         } else {
-          setMode(null);
-          setScreen('session');
+          // Show the lobby as a joiner waiting for host to start
+          setScreen('groupLink');
         }
-      });
-    }
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+      } else {
+        setMode(null);
+        setScreen('session');
+      }
+    });
+  }, [coords]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // When session deck is ready (for duo mode), use it
   useEffect(() => {
@@ -99,12 +108,13 @@ export default function App() {
     }
   }, [session.deck, mode, deck.length]);
 
-  // When partner joins (creator detects via presence), activate session
+  // When session becomes active via broadcast (joiner detects host started), transition to swiping
   useEffect(() => {
-    if (mode === 'group' && session.isCreator && realtime.partnerConnected && session.sessionStatus === 'waiting') {
+    if (realtime.sessionStarted && mode === 'group' && !session.isCreator && screen === 'groupLink') {
       session.activateSession();
+      setScreen('swiping');
     }
-  }, [mode, session.isCreator, realtime.partnerConnected, session.sessionStatus, session.activateSession]);
+  }, [realtime.sessionStarted, mode, session.isCreator, screen, session.activateSession]);
 
   // When partner triggers a match via realtime
   useEffect(() => {
@@ -190,12 +200,14 @@ export default function App() {
     }
   };
 
-  const handleGroupContinue = () => {
+  const handleGroupContinue = async () => {
     if (session.deck) {
       setDeck(session.deck);
       setCurrentIndex(0);
       setCardKey(k => k + 1);
     }
+    await session.startSession();
+    realtime.broadcastStart();
     setScreen('swiping');
   };
 
@@ -352,6 +364,7 @@ export default function App() {
         memberCount={realtime.memberCount || 1}
         onContinue={handleGroupContinue}
         onBack={goHome}
+        isJoiner={!session.isCreator}
       />
     );
   }
@@ -464,7 +477,7 @@ export default function App() {
                 }}
               >Review Matches</button>
             )}
-            {mode !== 'duo' && (
+            {mode !== 'group' && (
               <button
                 onClick={() => { initDeck(); }}
                 style={{

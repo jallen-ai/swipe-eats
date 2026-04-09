@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { haptics } from '../utils/haptics';
 
-export default function GroupLinkScreen({ sessionId, memberCount, onContinue, onBack }) {
+export default function GroupLinkScreen({ sessionId, memberCount, onContinue, onBack, isJoiner }) {
   const [copied, setCopied] = useState(false);
 
   const base = import.meta.env.BASE_URL.replace(/\/$/, '');
@@ -59,67 +59,73 @@ export default function GroupLinkScreen({ sessionId, memberCount, onContinue, on
         </svg>
       </button>
 
-      <div style={{ fontSize: '56px' }}>👥</div>
+      <div style={{ fontSize: '56px' }}>{isJoiner ? '✋' : '👥'}</div>
 
       <h2 style={{ fontSize: '24px', fontWeight: 800, textAlign: 'center' }}>
-        {hasMembers ? `${memberCount} members joined!` : 'Share with your group'}
+        {isJoiner
+          ? "You're in!"
+          : hasMembers ? `${memberCount} members joined!` : 'Share with your group'}
       </h2>
 
       <p style={{ color: 'var(--text-secondary)', textAlign: 'center', fontSize: '15px', fontWeight: 600 }}>
-        {hasMembers
-          ? 'Everyone swipes independently. Restaurants the group agrees on become matches!'
-          : 'Share this link with friends. Everyone gets the same restaurants to swipe through.'}
+        {isJoiner
+          ? 'Waiting for the host to start swiping...'
+          : hasMembers
+            ? 'Everyone swipes independently. Restaurants the group agrees on become matches!'
+            : 'Share this link with friends. Everyone gets the same restaurants to swipe through.'}
       </p>
 
-      {/* Link copy + share buttons */}
-      <div style={{ width: '100%', display: 'flex', gap: '10px' }}>
-        <button
-          onClick={copyLink}
-          style={{
-            flex: 1,
-            padding: '16px',
-            borderRadius: 'var(--radius-btn)',
-            border: '1px solid var(--bg-surface)',
-            background: 'var(--bg-card)',
-            color: copied ? 'var(--accent-secondary)' : 'var(--text-primary)',
-            cursor: 'pointer',
-            fontSize: '15px',
-            fontWeight: 700,
-            fontFamily: 'Nunito',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '8px',
-            transition: 'all 0.3s',
-            minWidth: 0,
-            overflow: 'hidden',
-          }}
-        >
-          {copied ? '✓ Copied!' : `📋 ${displayLink}`}
-        </button>
+      {/* Link copy + share buttons (creator only) */}
+      {!isJoiner && (
+        <div style={{ width: '100%', display: 'flex', gap: '10px' }}>
+          <button
+            onClick={copyLink}
+            style={{
+              flex: 1,
+              padding: '16px',
+              borderRadius: 'var(--radius-btn)',
+              border: '1px solid var(--bg-surface)',
+              background: 'var(--bg-card)',
+              color: copied ? 'var(--accent-secondary)' : 'var(--text-primary)',
+              cursor: 'pointer',
+              fontSize: '15px',
+              fontWeight: 700,
+              fontFamily: 'Nunito',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '8px',
+              transition: 'all 0.3s',
+              minWidth: 0,
+              overflow: 'hidden',
+            }}
+          >
+            {copied ? '✓ Copied!' : `📋 ${displayLink}`}
+          </button>
 
-        <button
-          onClick={shareLink}
-          style={{
-            width: '52px',
-            flexShrink: 0,
-            borderRadius: 'var(--radius-btn)',
-            border: '1px solid var(--bg-surface)',
-            background: 'var(--bg-card)',
-            color: 'var(--text-primary)',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-        >
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8"/>
-            <polyline points="16 6 12 2 8 6"/>
-            <line x1="12" y1="2" x2="12" y2="15"/>
-          </svg>
-        </button>
-      </div>
+          <button
+            onClick={shareLink}
+            style={{
+              width: '52px',
+              flexShrink: 0,
+              borderRadius: 'var(--radius-btn)',
+              border: '1px solid var(--bg-surface)',
+              background: 'var(--bg-card)',
+              color: 'var(--text-primary)',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8"/>
+              <polyline points="16 6 12 2 8 6"/>
+              <line x1="12" y1="2" x2="12" y2="15"/>
+            </svg>
+          </button>
+        </div>
+      )}
 
       {/* Member dots */}
       {memberCount > 0 && (
@@ -141,41 +147,57 @@ export default function GroupLinkScreen({ sessionId, memberCount, onContinue, on
         </div>
       )}
 
-      <button
-        onClick={() => { haptics.medium(); onContinue(); }}
-        style={{
-          width: '100%',
-          padding: '18px',
-          borderRadius: 'var(--radius-btn)',
-          border: 'none',
-          background: hasMembers
-            ? 'linear-gradient(135deg, var(--accent-secondary), #1AAF8B)'
-            : 'linear-gradient(135deg, var(--accent-primary), #FF7043)',
-          color: 'white',
-          cursor: 'pointer',
-          fontSize: '17px',
-          fontWeight: 800,
-          fontFamily: 'Nunito',
-          boxShadow: hasMembers
-            ? '0 4px 20px var(--accent-secondary-glow)'
-            : '0 4px 20px var(--accent-primary-glow)',
-        }}
-      >
-        {hasMembers ? 'Start Swiping!' : 'Start Swiping'}
-      </button>
-
-      {!hasMembers && (
+      {isJoiner ? (
         <div style={{
           display: 'flex', alignItems: 'center', gap: '8px',
           color: 'var(--text-dim)', fontSize: '13px', fontWeight: 600,
         }}>
           <div style={{
             width: '8px', height: '8px', borderRadius: '50%',
-            background: 'var(--text-dim)',
+            background: 'var(--accent-primary)',
             animation: 'pulse 1.5s ease-in-out infinite',
           }} />
-          Waiting for others to join...
+          Waiting for host to start...
         </div>
+      ) : (
+        <>
+          <button
+            onClick={() => { haptics.medium(); onContinue(); }}
+            style={{
+              width: '100%',
+              padding: '18px',
+              borderRadius: 'var(--radius-btn)',
+              border: 'none',
+              background: hasMembers
+                ? 'linear-gradient(135deg, var(--accent-secondary), #1AAF8B)'
+                : 'linear-gradient(135deg, var(--accent-primary), #FF7043)',
+              color: 'white',
+              cursor: 'pointer',
+              fontSize: '17px',
+              fontWeight: 800,
+              fontFamily: 'Nunito',
+              boxShadow: hasMembers
+                ? '0 4px 20px var(--accent-secondary-glow)'
+                : '0 4px 20px var(--accent-primary-glow)',
+            }}
+          >
+            {hasMembers ? 'Start Swiping!' : 'Start Swiping'}
+          </button>
+
+          {!hasMembers && (
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: '8px',
+              color: 'var(--text-dim)', fontSize: '13px', fontWeight: 600,
+            }}>
+              <div style={{
+                width: '8px', height: '8px', borderRadius: '50%',
+                background: 'var(--text-dim)',
+                animation: 'pulse 1.5s ease-in-out infinite',
+              }} />
+              Waiting for others to join...
+            </div>
+          )}
+        </>
       )}
     </div>
   );

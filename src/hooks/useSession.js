@@ -11,14 +11,19 @@ function generateSessionId() {
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 
 // Map a DB restaurant row to app shape (for duo partner lookups)
-function mapDbRestaurant(row) {
+function mapDbRestaurant(row, userLat, userLng) {
+  const distance = (userLat != null && userLng != null)
+    ? calcDistanceMi(userLat, userLng, parseFloat(row.lat), parseFloat(row.lng))
+    : null;
+
   return {
     id: row.place_id,
     name: row.name,
     cuisine: row.cuisine || 'Restaurant',
     cuisineGroup: row.cuisine_group || getCuisineGroup(row.cuisine || 'Restaurant'),
     price: formatPriceLevel(row.price_level),
-    distance: '',
+    distance: distance != null ? formatDistance(distance) : '',
+    distanceMi: distance,
     rating: row.rating ? parseFloat(row.rating) : null,
     ratingCount: row.rating_count,
     photo: row.photo_path
@@ -77,7 +82,9 @@ export function useSession() {
   }, []);
 
   // Returns { success, deck } so the caller can set deck synchronously
-  const joinSession = useCallback(async (id) => {
+  const joinSession = useCallback(async (id, userCoords) => {
+    const userLat = userCoords?.lat ?? null;
+    const userLng = userCoords?.lng ?? null;
     const userId = await getUserId();
     if (!userId) {
       setSessionError('Not authenticated');
@@ -107,8 +114,8 @@ export function useSession() {
       setDeckIds(session.deck_ids);
       setIsCreator(true);
       setSessionStatus(session.status);
-      const builtDeck = await buildDeckFromIds(session.deck_ids);
-      return { success: true, deck: builtDeck };
+      const builtDeck = await buildDeckFromIds(session.deck_ids, userLat, userLng);
+      return { success: true, deck: builtDeck, status: session.status };
     }
 
     if (session.partner_id && session.partner_id !== userId) {
@@ -122,13 +129,13 @@ export function useSession() {
       setDeckIds(session.deck_ids);
       setIsCreator(false);
       setSessionStatus(session.status);
-      const builtDeck = await buildDeckFromIds(session.deck_ids);
-      return { success: true, deck: builtDeck };
+      const builtDeck = await buildDeckFromIds(session.deck_ids, userLat, userLng);
+      return { success: true, deck: builtDeck, status: session.status };
     }
 
     const { error: updateError } = await supabase
       .from('sessions')
-      .update({ partner_id: userId, status: 'active' })
+      .update({ partner_id: userId })
       .eq('id', id)
       .eq('status', 'waiting')
       .is('partner_id', null);
@@ -142,20 +149,20 @@ export function useSession() {
     setSessionId(id);
     setDeckIds(session.deck_ids);
     setIsCreator(false);
-    setSessionStatus('active');
-    const builtDeck = await buildDeckFromIds(session.deck_ids);
-    return { success: true, deck: builtDeck };
+    setSessionStatus('waiting');
+    const builtDeck = await buildDeckFromIds(session.deck_ids, userLat, userLng);
+    return { success: true, deck: builtDeck, status: 'waiting' };
   }, []);
 
   // Fetch restaurant data from DB and order by deck_ids
-  const buildDeckFromIds = async (ids) => {
+  const buildDeckFromIds = async (ids, userLat, userLng) => {
     if (!ids || ids.length === 0) {
       setDeck([]);
       return [];
     }
 
     const rows = await fetchRestaurantsByIds(ids);
-    const mapped = rows.map(mapDbRestaurant);
+    const mapped = rows.map(r => mapDbRestaurant(r, userLat, userLng));
     // Preserve the deck order from deck_ids
     const byId = Object.fromEntries(mapped.map(r => [r.id, r]));
     const ordered = ids.map(id => byId[id]).filter(Boolean);
@@ -167,6 +174,19 @@ export function useSession() {
     setSessionStatus('active');
   }, []);
 
+  const startSession = useCallback(async () => {
+    if (!sessionId) return;
+    const { error } = await supabase
+      .from('sessions')
+      .update({ status: 'active' })
+      .eq('id', sessionId);
+    if (error) {
+      console.error('Failed to start session:', error.message);
+      return;
+    }
+    setSessionStatus('active');
+  }, [sessionId]);
+
   return {
     sessionId,
     sessionStatus,
@@ -177,5 +197,6 @@ export function useSession() {
     createSession,
     joinSession,
     activateSession,
+    startSession,
   };
 }

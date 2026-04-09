@@ -8,6 +8,7 @@ export function useRealtimeSwipes(sessionId, isActive) {
   const [partnerConnected, setPartnerConnected] = useState(false);
   const [memberCount, setMemberCount] = useState(1);
   const [newPartnerMatch, setNewPartnerMatch] = useState(null);
+  const [sessionStarted, setSessionStarted] = useState(false);
   const myRightSwipesRef = useRef(new Set());
   const myUserIdRef = useRef(null);
   const channelRef = useRef(null);
@@ -59,6 +60,9 @@ export function useRealtimeSwipes(sessionId, isActive) {
     if (!sessionId || !isActive) return;
 
     const channel = supabase.channel(`session:${sessionId}`)
+      .on('broadcast', { event: 'session_start' }, () => {
+        setSessionStarted(true);
+      })
       .on('postgres_changes', {
         event: 'INSERT',
         schema: 'public',
@@ -139,6 +143,12 @@ export function useRealtimeSwipes(sessionId, isActive) {
     return { isMatch };
   }, [sessionId, otherRightSwipes]);
 
+  const broadcastStart = useCallback(() => {
+    if (channelRef.current) {
+      channelRef.current.send({ type: 'broadcast', event: 'session_start', payload: {} });
+    }
+  }, []);
+
   const clearPartnerMatch = useCallback(() => {
     setNewPartnerMatch(null);
   }, []);
@@ -148,6 +158,8 @@ export function useRealtimeSwipes(sessionId, isActive) {
     partnerConnected,
     memberCount,
     newPartnerMatch,
+    sessionStarted,
+    broadcastStart,
     clearPartnerMatch,
     recordSwipe,
   };
