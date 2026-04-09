@@ -84,7 +84,11 @@ export function useRestaurants() {
         return;
       }
 
-      const excludeTypes = new Set(['hotel', 'lodging', 'motel', 'resort_hotel', 'extended_stay_hotel']);
+      const excludeTypes = new Set([
+        'hotel', 'lodging', 'motel', 'resort_hotel', 'extended_stay_hotel',
+        'convenience_store', 'gas_station', 'grocery_store', 'supermarket',
+        'liquor_store', 'drugstore', 'pharmacy',
+      ]);
       const mapped = data.restaurants
         .filter((r) => {
           const types = r.types || [];

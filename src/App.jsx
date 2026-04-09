@@ -27,9 +27,11 @@ function getJoinSessionId() {
   return match ? match[1] : null;
 }
 
+const initialJoinId = getJoinSessionId();
+
 export default function App() {
-  const [screen, setScreen] = useState('session');
-  const [mode, setMode] = useState(null);
+  const [screen, setScreen] = useState(initialJoinId ? 'joining' : 'session');
+  const [mode, setMode] = useState(initialJoinId ? 'group' : null);
   const engineRef = useRef(new PreferenceEngine());
   const [deck, setDeck] = useState([]);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -43,7 +45,7 @@ export default function App() {
   const [activeFilters, setActiveFilters] = useState({ maxDistance: 20, selectedPrices: [], openNow: true });
 
   const session = useSession();
-  const isGroupActive = mode === 'group' && session.sessionStatus === 'active';
+  const isGroupActive = mode === 'group' && (session.sessionStatus === 'active' || session.sessionStatus === 'waiting');
   const realtime = useRealtimeSwipes(session.sessionId, isGroupActive);
   const { restaurants: liveRestaurants, loading: restaurantsLoading, error: restaurantsError, coords, setCoords } = useRestaurants();
   const geolocateCoordsRef = useRef(null);
@@ -71,13 +73,12 @@ export default function App() {
 
   // Handle join links on mount
   useEffect(() => {
-    const joinId = getJoinSessionId();
-    if (joinId) {
-      setMode('group');
-      session.joinSession(joinId).then(success => {
+    if (initialJoinId) {
+      session.joinSession(initialJoinId).then(success => {
         if (success) {
           setScreen('swiping');
         } else {
+          setMode(null);
           setScreen('session');
         }
       });
@@ -304,6 +305,25 @@ export default function App() {
       }
     }
   }, [setCoords]);
+
+  if (screen === 'joining') {
+    return (
+      <div style={{
+        height: '100%', display: 'flex', flexDirection: 'column',
+        justifyContent: 'center', alignItems: 'center', gap: '16px',
+      }}>
+        <div style={{
+          width: '48px', height: '48px', borderRadius: '50%',
+          border: '3px solid var(--bg-surface)',
+          borderTopColor: 'var(--accent-primary)',
+          animation: 'spin 0.8s linear infinite',
+        }} />
+        <p style={{ color: 'var(--text-secondary)', fontSize: '15px', fontWeight: 700 }}>
+          Joining group...
+        </p>
+      </div>
+    );
+  }
 
   if (screen === 'session') {
     return <SessionScreen onStart={handleStart} loading={restaurantsLoading} coords={coords} onLocationChange={handleLocationChange} />;

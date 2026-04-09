@@ -16,6 +16,23 @@ export default function GroupLinkScreen({ sessionId, memberCount, onContinue, on
     setTimeout(() => setCopied(false), 2000);
   };
 
+  const shareLink = async () => {
+    haptics.light();
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: 'SwipeEats',
+          text: 'Join my SwipeEats group and help pick where to eat!',
+          url: link,
+        });
+      } catch (e) {
+        if (e.name !== 'AbortError') copyLink();
+      }
+    } else {
+      copyLink();
+    }
+  };
+
   return (
     <div style={{
       height: '100%',
@@ -54,29 +71,55 @@ export default function GroupLinkScreen({ sessionId, memberCount, onContinue, on
           : 'Share this link with friends. Everyone gets the same restaurants to swipe through.'}
       </p>
 
-      {/* Link copy button - always visible so more people can join */}
-      <button
-        onClick={copyLink}
-        style={{
-          width: '100%',
-          padding: '16px',
-          borderRadius: 'var(--radius-btn)',
-          border: '1px solid var(--bg-surface)',
-          background: 'var(--bg-card)',
-          color: copied ? 'var(--accent-secondary)' : 'var(--text-primary)',
-          cursor: 'pointer',
-          fontSize: '15px',
-          fontWeight: 700,
-          fontFamily: 'Nunito',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          gap: '8px',
-          transition: 'all 0.3s',
-        }}
-      >
-        {copied ? '✓ Copied!' : `📋 ${displayLink}`}
-      </button>
+      {/* Link copy + share buttons */}
+      <div style={{ width: '100%', display: 'flex', gap: '10px' }}>
+        <button
+          onClick={copyLink}
+          style={{
+            flex: 1,
+            padding: '16px',
+            borderRadius: 'var(--radius-btn)',
+            border: '1px solid var(--bg-surface)',
+            background: 'var(--bg-card)',
+            color: copied ? 'var(--accent-secondary)' : 'var(--text-primary)',
+            cursor: 'pointer',
+            fontSize: '15px',
+            fontWeight: 700,
+            fontFamily: 'Nunito',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '8px',
+            transition: 'all 0.3s',
+            minWidth: 0,
+            overflow: 'hidden',
+          }}
+        >
+          {copied ? '✓ Copied!' : `📋 ${displayLink}`}
+        </button>
+
+        <button
+          onClick={shareLink}
+          style={{
+            width: '52px',
+            flexShrink: 0,
+            borderRadius: 'var(--radius-btn)',
+            border: '1px solid var(--bg-surface)',
+            background: 'var(--bg-card)',
+            color: 'var(--text-primary)',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8"/>
+            <polyline points="16 6 12 2 8 6"/>
+            <line x1="12" y1="2" x2="12" y2="15"/>
+          </svg>
+        </button>
+      </div>
 
       {/* Member dots */}
       {memberCount > 0 && (

@@ -279,7 +279,11 @@ Deno.serve(async (req) => {
 
       const places = await fetchFromGoogle(cellLat, cellLng);
       // Filter out non-restaurant places (hotels, lodging, etc.)
-      const excludeTypes = new Set(["hotel", "lodging", "motel", "resort_hotel", "extended_stay_hotel"]);
+      const excludeTypes = new Set([
+        "hotel", "lodging", "motel", "resort_hotel", "extended_stay_hotel",
+        "convenience_store", "gas_station", "grocery_store", "supermarket",
+        "liquor_store", "drugstore", "pharmacy",
+      ]);
       const filteredPlaces = places.filter((p: any) => {
         const primary = p.primaryType || "";
         if (excludeTypes.has(primary)) return false;
