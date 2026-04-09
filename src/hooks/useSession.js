@@ -47,8 +47,9 @@ export function useSession() {
   const [isCreator, setIsCreator] = useState(false);
   const [deck, setDeck] = useState(null);
   const [creatorId, setCreatorId] = useState(null);
+  const [groupName, setGroupName] = useState(null);
 
-  const createSession = useCallback(async (restaurants, nickname) => {
+  const createSession = useCallback(async (restaurants, nickname, groupNameParam) => {
     const userId = await getUserId();
     if (!userId) {
       setSessionError('Not authenticated');
@@ -66,6 +67,7 @@ export function useSession() {
       creator_id: userId,
       deck_ids: orderedIds,
       status: 'waiting',
+      group_name: groupNameParam || null,
     });
 
     if (error) {
@@ -85,6 +87,7 @@ export function useSession() {
     setDeckIds(orderedIds);
     setIsCreator(true);
     setCreatorId(userId);
+    setGroupName(groupNameParam || null);
     setDeck(sorted);
     return id;
   }, []);
@@ -151,6 +154,7 @@ export function useSession() {
     setDeckIds(session.deck_ids);
     setIsCreator(amCreator);
     setCreatorId(session.creator_id);
+    setGroupName(session.group_name || null);
     setSessionStatus(currentStatus);
 
     const builtDeck = await buildDeckFromIds(session.deck_ids, userLat, userLng);
@@ -252,6 +256,7 @@ export function useSession() {
     deckIds,
     isCreator,
     creatorId,
+    groupName,
     createSession,
     joinSession,
     activateSession,

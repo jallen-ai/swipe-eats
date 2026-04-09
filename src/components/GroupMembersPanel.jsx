@@ -1,6 +1,6 @@
 import { haptics } from '../utils/haptics';
 
-export default function GroupMembersPanel({ members, creatorId, deckSize, onClose }) {
+export default function GroupMembersPanel({ members, creatorId, deckSize, groupName, onClose }) {
   return (
     <div
       onClick={onClose}
@@ -28,7 +28,7 @@ export default function GroupMembersPanel({ members, creatorId, deckSize, onClos
           marginBottom: '16px',
         }}>
           <h3 style={{ fontSize: '18px', fontWeight: 800, margin: 0 }}>
-            Group Members
+            {groupName || 'Group Members'}
           </h3>
           <button
             onClick={() => { haptics.light(); onClose(); }}

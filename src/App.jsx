@@ -3,6 +3,7 @@ import { haptics } from './utils/haptics';
 import { PreferenceEngine } from './utils/PreferenceEngine';
 import { FALLBACK_RESTAURANTS } from './data/restaurants';
 import { calcDistanceMi, formatDistance } from './utils/cuisine';
+import { supabase } from './utils/supabase';
 import { useSession } from './hooks/useSession';
 import { useRealtimeSwipes } from './hooks/useRealtimeSwipes';
 import { useRestaurants } from './hooks/useRestaurants';
@@ -217,13 +218,16 @@ export default function App() {
     }
   };
 
-  const handleGroupContinue = async (nickname) => {
-    // Save nickname if provided (creator sets it here, joiner sets it before joining)
-    if (nickname && session.isCreator) {
+  const handleGroupContinue = async (nickname, groupNameInput) => {
+    // Save nickname if provided
+    if (nickname) {
       await session.updateNickname(nickname);
     }
-    if (!session.isCreator && nickname) {
-      await session.updateNickname(nickname);
+    // Save group name if creator provided one (update DB)
+    if (groupNameInput && session.isCreator && session.sessionId) {
+      await supabase.from('sessions')
+        .update({ group_name: groupNameInput })
+        .eq('id', session.sessionId);
     }
     if (session.deck) {
       setDeck(session.deck);
@@ -391,6 +395,7 @@ export default function App() {
         onContinue={handleGroupContinue}
         onBack={goHome}
         isJoiner={!session.isCreator}
+        groupName={session.groupName}
       />
     );
   }
@@ -459,10 +464,14 @@ export default function App() {
                 border: 'none', cursor: 'pointer',
                 display: 'flex', alignItems: 'center', gap: '4px',
                 fontFamily: 'Nunito',
+                maxWidth: '140px',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
               }}
             >
-              GROUP
-              <span style={{ fontSize: '11px' }}>
+              {session.groupName || 'GROUP'}
+              <span style={{ fontSize: '11px', flexShrink: 0 }}>
                 {realtime.members.length > 0 ? ` ${realtime.members.length}` : ''}
               </span>
             </button>
@@ -622,6 +631,7 @@ export default function App() {
           members={realtime.members}
           creatorId={session.creatorId}
           deckSize={deck.length}
+          groupName={session.groupName}
           onClose={() => setShowGroupPanel(false)}
         />
       )}

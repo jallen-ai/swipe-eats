@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { haptics } from '../utils/haptics';
 
-export default function GroupLinkScreen({ sessionId, memberCount, onContinue, onBack, isJoiner }) {
+export default function GroupLinkScreen({ sessionId, memberCount, onContinue, onBack, isJoiner, groupName: existingGroupName }) {
   const [copied, setCopied] = useState(false);
   const [nickname, setNickname] = useState('');
+  const [groupName, setGroupName] = useState('');
 
   const base = import.meta.env.BASE_URL.replace(/\/$/, '');
   const link = `${window.location.origin}${base}/s/${sessionId}`;
@@ -64,9 +65,15 @@ export default function GroupLinkScreen({ sessionId, memberCount, onContinue, on
 
       <h2 style={{ fontSize: '24px', fontWeight: 800, textAlign: 'center' }}>
         {isJoiner
-          ? "You're in!"
+          ? (existingGroupName || "You're in!")
           : hasMembers ? `${memberCount} members joined!` : 'Share with your group'}
       </h2>
+
+      {isJoiner && existingGroupName && (
+        <p style={{ color: 'var(--accent-secondary)', textAlign: 'center', fontSize: '14px', fontWeight: 700, margin: '-8px 0 0' }}>
+          You're in!
+        </p>
+      )}
 
       <p style={{ color: 'var(--text-secondary)', textAlign: 'center', fontSize: '15px', fontWeight: 600 }}>
         {isJoiner
@@ -75,6 +82,35 @@ export default function GroupLinkScreen({ sessionId, memberCount, onContinue, on
             ? 'Everyone swipes independently. Restaurants the group agrees on become matches!'
             : 'Share this link with friends. Everyone gets the same restaurants to swipe through.'}
       </p>
+
+      {/* Group name input (creator only) */}
+      {!isJoiner && (
+        <div style={{ width: '100%' }}>
+          <input
+            type="text"
+            value={groupName}
+            onChange={e => setGroupName(e.target.value)}
+            placeholder="Group name (optional)"
+            maxLength={40}
+            style={{
+              width: '100%',
+              padding: '14px 16px',
+              borderRadius: 'var(--radius-btn)',
+              border: '1px solid var(--bg-surface)',
+              background: 'var(--bg-card)',
+              color: 'var(--text-primary)',
+              fontSize: '16px',
+              fontWeight: 600,
+              fontFamily: 'Nunito',
+              outline: 'none',
+              boxSizing: 'border-box',
+              textAlign: 'center',
+            }}
+            onFocus={e => e.target.style.borderColor = 'var(--accent-primary)'}
+            onBlur={e => e.target.style.borderColor = 'var(--bg-surface)'}
+          />
+        </div>
+      )}
 
       {/* Nickname input */}
       <div style={{ width: '100%' }}>
@@ -176,7 +212,7 @@ export default function GroupLinkScreen({ sessionId, memberCount, onContinue, on
       )}
 
       <button
-        onClick={() => { haptics.medium(); onContinue(nickname.trim() || null); }}
+        onClick={() => { haptics.medium(); onContinue(nickname.trim() || null, groupName.trim() || null); }}
         style={{
           width: '100%',
           padding: '18px',
