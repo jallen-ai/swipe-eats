@@ -69,7 +69,7 @@ export default function GroupLinkScreen({ sessionId, memberCount, onContinue, on
 
       <p style={{ color: 'var(--text-secondary)', textAlign: 'center', fontSize: '15px', fontWeight: 600 }}>
         {isJoiner
-          ? 'Waiting for the host to start swiping...'
+          ? 'Swipe through the restaurants and find ones the group agrees on!'
           : hasMembers
             ? 'Everyone swipes independently. Restaurants the group agrees on become matches!'
             : 'Share this link with friends. Everyone gets the same restaurants to swipe through.'}
@@ -147,57 +147,41 @@ export default function GroupLinkScreen({ sessionId, memberCount, onContinue, on
         </div>
       )}
 
-      {isJoiner ? (
+      <button
+        onClick={() => { haptics.medium(); onContinue(); }}
+        style={{
+          width: '100%',
+          padding: '18px',
+          borderRadius: 'var(--radius-btn)',
+          border: 'none',
+          background: (isJoiner || hasMembers)
+            ? 'linear-gradient(135deg, var(--accent-secondary), #1AAF8B)'
+            : 'linear-gradient(135deg, var(--accent-primary), #FF7043)',
+          color: 'white',
+          cursor: 'pointer',
+          fontSize: '17px',
+          fontWeight: 800,
+          fontFamily: 'Nunito',
+          boxShadow: (isJoiner || hasMembers)
+            ? '0 4px 20px var(--accent-secondary-glow)'
+            : '0 4px 20px var(--accent-primary-glow)',
+        }}
+      >
+        Start Swiping!
+      </button>
+
+      {!isJoiner && !hasMembers && (
         <div style={{
           display: 'flex', alignItems: 'center', gap: '8px',
           color: 'var(--text-dim)', fontSize: '13px', fontWeight: 600,
         }}>
           <div style={{
             width: '8px', height: '8px', borderRadius: '50%',
-            background: 'var(--accent-primary)',
+            background: 'var(--text-dim)',
             animation: 'pulse 1.5s ease-in-out infinite',
           }} />
-          Waiting for host to start...
+          Waiting for others to join...
         </div>
-      ) : (
-        <>
-          <button
-            onClick={() => { haptics.medium(); onContinue(); }}
-            style={{
-              width: '100%',
-              padding: '18px',
-              borderRadius: 'var(--radius-btn)',
-              border: 'none',
-              background: hasMembers
-                ? 'linear-gradient(135deg, var(--accent-secondary), #1AAF8B)'
-                : 'linear-gradient(135deg, var(--accent-primary), #FF7043)',
-              color: 'white',
-              cursor: 'pointer',
-              fontSize: '17px',
-              fontWeight: 800,
-              fontFamily: 'Nunito',
-              boxShadow: hasMembers
-                ? '0 4px 20px var(--accent-secondary-glow)'
-                : '0 4px 20px var(--accent-primary-glow)',
-            }}
-          >
-            {hasMembers ? 'Start Swiping!' : 'Start Swiping'}
-          </button>
-
-          {!hasMembers && (
-            <div style={{
-              display: 'flex', alignItems: 'center', gap: '8px',
-              color: 'var(--text-dim)', fontSize: '13px', fontWeight: 600,
-            }}>
-              <div style={{
-                width: '8px', height: '8px', borderRadius: '50%',
-                background: 'var(--text-dim)',
-                animation: 'pulse 1.5s ease-in-out infinite',
-              }} />
-              Waiting for others to join...
-            </div>
-          )}
-        </>
       )}
     </div>
   );

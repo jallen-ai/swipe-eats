@@ -108,13 +108,7 @@ export default function App() {
     }
   }, [session.deck, mode, deck.length]);
 
-  // When session becomes active via broadcast (joiner detects host started), transition to swiping
-  useEffect(() => {
-    if (realtime.sessionStarted && mode === 'group' && !session.isCreator && screen === 'groupLink') {
-      session.activateSession();
-      setScreen('swiping');
-    }
-  }, [realtime.sessionStarted, mode, session.isCreator, screen, session.activateSession]);
+  // (No coordinated start needed — each member clicks "Start Swiping" independently)
 
   // When partner triggers a match via realtime
   useEffect(() => {
@@ -206,8 +200,10 @@ export default function App() {
       setCurrentIndex(0);
       setCardKey(k => k + 1);
     }
-    await session.startSession();
-    realtime.broadcastStart();
+    // Ensure session is active so swipes can be recorded
+    if (session.sessionStatus === 'waiting') {
+      await session.startSession();
+    }
     setScreen('swiping');
   };
 

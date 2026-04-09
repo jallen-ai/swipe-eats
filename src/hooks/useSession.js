@@ -135,7 +135,7 @@ export function useSession() {
 
     const { error: updateError } = await supabase
       .from('sessions')
-      .update({ partner_id: userId })
+      .update({ partner_id: userId, status: 'active' })
       .eq('id', id)
       .eq('status', 'waiting')
       .is('partner_id', null);
@@ -149,9 +149,9 @@ export function useSession() {
     setSessionId(id);
     setDeckIds(session.deck_ids);
     setIsCreator(false);
-    setSessionStatus('waiting');
+    setSessionStatus('active');
     const builtDeck = await buildDeckFromIds(session.deck_ids, userLat, userLng);
-    return { success: true, deck: builtDeck, status: 'waiting' };
+    return { success: true, deck: builtDeck, status: 'active' };
   }, []);
 
   // Fetch restaurant data from DB and order by deck_ids
