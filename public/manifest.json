@@ -2,7 +2,7 @@
   "name": "SwipeEats",
   "short_name": "SwipeEats",
   "description": "Swipe your way to dinner",
-  "start_url": "/swipe-eats/",
+  "start_url": "/",
   "display": "standalone",
   "background_color": "#141420",
   "theme_color": "#141420",

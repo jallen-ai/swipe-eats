@@ -35,5 +35,5 @@ export default defineConfig({
       manifest: false, // Using existing public/manifest.json
     }),
   ],
-  base: '/swipe-eats/',
+  base: '/',
 })
