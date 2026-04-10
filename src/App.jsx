@@ -478,7 +478,7 @@ export default function App() {
           )}
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          {mode !== 'group' && (
+          {(mode !== 'group' || session.isCreator) && (
             <button
               onClick={() => { haptics.filterTap(); setShowSwipeFilters(true); }}
               style={{
