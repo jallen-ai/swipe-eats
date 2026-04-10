@@ -23,8 +23,8 @@ export default function GroupLinkScreen({ sessionId, memberCount, onContinue, on
     if (navigator.share) {
       try {
         await navigator.share({
-          title: 'SwipeEats',
-          text: 'Join my SwipeEats group and help pick where to eat!',
+          title: 'Nosh Pit',
+          text: 'Join my Nosh Pit group and help pick where to eat!',
           url: link,
         });
       } catch (e) {

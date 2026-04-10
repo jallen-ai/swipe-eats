@@ -74,19 +74,16 @@ export default function SessionScreen({ onStart, loading, coords, onLocationChan
       gap: '20px',
     }}>
       <div style={{ textAlign: 'center', marginBottom: '12px' }}>
-        <div style={{
-          fontSize: '48px',
-          marginBottom: '8px',
-          filter: 'drop-shadow(0 0 12px rgba(232, 93, 58, 0.5))',
-        }}>🍽️</div>
-        <h1 style={{
-          fontSize: '36px',
-          fontWeight: 900,
-          background: 'linear-gradient(135deg, var(--accent-primary), #FF8A65)',
-          WebkitBackgroundClip: 'text',
-          WebkitTextFillColor: 'transparent',
-          marginBottom: '8px',
-        }}>SwipeEats</h1>
+        <img
+          src={`${import.meta.env.BASE_URL}images/logo.png`}
+          alt="Nosh Pit"
+          style={{
+            width: '140px',
+            height: '140px',
+            marginBottom: '4px',
+            filter: 'drop-shadow(0 0 16px rgba(232, 93, 58, 0.3))',
+          }}
+        />
         <p style={{
           color: 'var(--text-secondary)',
           fontSize: '16px',

@@ -1,6 +1,6 @@
 {
-  "name": "SwipeEats",
-  "short_name": "SwipeEats",
+  "name": "Nosh Pit",
+  "short_name": "Nosh Pit",
   "description": "Swipe your way to dinner",
   "start_url": "/",
   "display": "standalone",

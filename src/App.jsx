@@ -453,7 +453,7 @@ export default function App() {
             fontSize: '20px', fontWeight: 900,
             background: 'linear-gradient(135deg, var(--accent-primary), #FF8A65)',
             WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
-          }}>SwipeEats</span>
+          }}>Nosh Pit</span>
           {mode === 'group' && (
             <button
               onClick={() => { haptics.light(); setShowGroupPanel(true); }}
