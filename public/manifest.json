@@ -1,7 +1,7 @@
 {
   "name": "Nosh Pit",
   "short_name": "Nosh Pit",
-  "description": "Swipe your way to dinner",
+  "description": "Jump on in and pick what's for dinner",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#141420",

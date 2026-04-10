@@ -96,7 +96,7 @@ export default function SessionScreen({ onStart, loading, coords, onLocationChan
           color: 'var(--text-secondary)',
           fontSize: '16px',
           fontWeight: 600,
-        }}>Swipe your way to dinner</p>
+        }}>Jump on in and pick what's for dinner</p>
       </div>
 
       {/* Location selector */}
