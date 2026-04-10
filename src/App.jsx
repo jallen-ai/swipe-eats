@@ -384,7 +384,7 @@ export default function App() {
   }
 
   if (screen === 'session') {
-    return <SessionScreen onStart={handleStart} loading={restaurantsLoading} coords={coords} onLocationChange={handleLocationChange} />;
+    return <SessionScreen onStart={handleStart} loading={restaurantsLoading} coords={coords} onLocationChange={handleLocationChange} locationError={restaurantsError} />;
   }
 
   if (screen === 'groupLink') {

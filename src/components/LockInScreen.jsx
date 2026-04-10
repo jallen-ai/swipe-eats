@@ -119,6 +119,18 @@ export default function LockInScreen({ restaurant, onBack, mode }) {
         ) : (
           <div style={{ width: '100%', height: '100%', background: restaurant.color || 'var(--bg-surface)' }} />
         )}
+        {restaurant.photoAttribution && (
+          <span style={{
+            position: 'absolute', top: '16px', right: '16px', zIndex: 3,
+            fontSize: '10px', fontWeight: 600,
+            color: 'rgba(255,255,255,0.6)',
+            background: 'rgba(0,0,0,0.35)',
+            backdropFilter: 'blur(4px)',
+            padding: '2px 8px', borderRadius: '8px',
+          }}>
+            {restaurant.photoAttribution}
+          </span>
+        )}
         <div style={{
           position: 'absolute', bottom: 0, left: 0, right: 0, height: '60%',
           background: 'linear-gradient(transparent, var(--bg-primary))',

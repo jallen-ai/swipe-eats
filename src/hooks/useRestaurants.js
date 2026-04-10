@@ -29,6 +29,8 @@ function mapRestaurant(row, userLat, userLng) {
     lat: parseFloat(row.lat),
     lng: parseFloat(row.lng),
     hours: row.hours,
+    editorialSummary: row.editorial_summary || null,
+    phone: row.phone || null,
     delivery: row.delivery,
     dineIn: row.dine_in,
     takeout: row.takeout,
@@ -55,8 +57,7 @@ export function useRestaurants() {
       },
       (err) => {
         console.warn('Geolocation denied:', err.message);
-        // Fall back to a default location (NYC midtown)
-        setCoords({ lat: 40.7580, lng: -73.9855 });
+        // Don't silently fall back to a random location — let the UI handle it
         setError('location_denied');
       },
       { enableHighAccuracy: false, timeout: 10000, maximumAge: 300000 }
@@ -111,7 +112,7 @@ export function useRestaurants() {
 
   return {
     restaurants,
-    loading: loading || (!coords && !error),
+    loading: loading || (!coords && error !== 'location_denied' && !error),
     error,
     coords,
     setCoords,

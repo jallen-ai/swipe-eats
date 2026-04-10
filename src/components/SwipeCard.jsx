@@ -147,6 +147,20 @@ export default function SwipeCard({ restaurant, onSwipe, isTop, style }) {
             draggable={false}
           />
         )}
+        {/* Photo attribution */}
+        {restaurant.photoAttribution && (
+          <span style={{
+            position: 'absolute', top: '10px', right: '10px', zIndex: 3,
+            fontSize: '10px', fontWeight: 600,
+            color: 'rgba(255,255,255,0.6)',
+            background: 'rgba(0,0,0,0.35)',
+            backdropFilter: 'blur(4px)',
+            padding: '2px 8px', borderRadius: '8px',
+          }}>
+            {restaurant.photoAttribution}
+          </span>
+        )}
+
         {/* Gradient overlay for text readability */}
         <div style={{
           position: 'absolute',
@@ -269,6 +283,22 @@ export default function SwipeCard({ restaurant, onSwipe, isTop, style }) {
             </div>
           )}
         </div>
+        {restaurant.editorialSummary && (
+          <p style={{
+            fontSize: '13px',
+            color: 'var(--text-secondary)',
+            fontWeight: 500,
+            fontStyle: 'italic',
+            lineHeight: 1.4,
+            margin: 0,
+            display: '-webkit-box',
+            WebkitLineClamp: 2,
+            WebkitBoxOrient: 'vertical',
+            overflow: 'hidden',
+          }}>
+            "{restaurant.editorialSummary}"
+          </p>
+        )}
         {restaurant.address && (
           <p style={{
             fontSize: '13px', color: 'var(--text-dim)', fontWeight: 600,

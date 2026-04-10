@@ -4,13 +4,15 @@ import { supabase } from '../utils/supabase';
 
 const PRICE_LABELS = ['$', '$$', '$$$', '$$$$'];
 
-export default function SessionScreen({ onStart, loading, coords, onLocationChange }) {
+export default function SessionScreen({ onStart, loading, coords, onLocationChange, locationError: geoError }) {
   const [showFilters, setShowFilters] = useState(false);
   const [maxDistance, setMaxDistance] = useState(5);
   const [selectedPrices, setSelectedPrices] = useState([]); // empty = all
   const [openNow, setOpenNow] = useState(true);
 
-  // Location search state
+  const locationDenied = geoError === 'location_denied' && !coords;
+
+  // Location search state — auto-show when geolocation denied
   const [showLocationInput, setShowLocationInput] = useState(false);
   const [locationQuery, setLocationQuery] = useState('');
   const [locationName, setLocationName] = useState(null); // null = "Near you"
@@ -31,7 +33,7 @@ export default function SessionScreen({ onStart, loading, coords, onLocationChan
     setLocationLoading(true);
     setLocationError(null);
     try {
-      const resp = await supabase.functions.invoke('clever-api', {
+      const resp = await supabase.functions.invoke('geocode', {
         body: { query: locationQuery.trim() },
       });
       const result = resp.data;
@@ -166,14 +168,42 @@ export default function SessionScreen({ onStart, loading, coords, onLocationChan
         </div>
       )}
 
+      {/* Location denied banner */}
+      {locationDenied && !showLocationInput && (
+        <div style={{
+          width: '100%', background: 'rgba(244, 67, 54, 0.1)', border: '1px solid rgba(244, 67, 54, 0.3)',
+          borderRadius: 'var(--radius-btn)', padding: '14px 16px',
+          display: 'flex', flexDirection: 'column', gap: '10px',
+        }}>
+          <p style={{ fontSize: '13px', fontWeight: 700, color: '#F44336', margin: 0 }}>
+            Location access was denied
+          </p>
+          <p style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-secondary)', margin: 0 }}>
+            Enter a city or zip code above so we can find restaurants near you.
+          </p>
+          <button
+            onClick={() => setShowLocationInput(true)}
+            style={{
+              background: 'none', border: 'none', cursor: 'pointer',
+              color: 'var(--accent-secondary)', fontSize: '13px', fontWeight: 700,
+              padding: 0, textAlign: 'left', fontFamily: 'Nunito',
+            }}
+          >
+            Enter location →
+          </button>
+        </div>
+      )}
+
       {/* Mode buttons */}
       <button
-        onClick={() => { haptics.medium(); onStart('solo', filters); }}
+        onClick={() => { if (!locationDenied) { haptics.medium(); onStart('solo', filters); } }}
+        disabled={locationDenied}
         style={{
           width: '100%', padding: '20px', borderRadius: 'var(--radius-btn)',
           border: 'none', background: 'var(--bg-card)', color: 'var(--text-primary)',
-          cursor: 'pointer', textAlign: 'left',
+          cursor: locationDenied ? 'default' : 'pointer', textAlign: 'left',
           transition: 'transform 0.2s',
+          opacity: locationDenied ? 0.4 : 1,
         }}
         onPointerDown={e => e.currentTarget.style.transform = 'scale(0.97)'}
         onPointerUp={e => e.currentTarget.style.transform = 'scale(1)'}
@@ -183,12 +213,14 @@ export default function SessionScreen({ onStart, loading, coords, onLocationChan
       </button>
 
       <button
-        onClick={() => { haptics.medium(); onStart('group', filters); }}
+        onClick={() => { if (!locationDenied) { haptics.medium(); onStart('group', filters); } }}
+        disabled={locationDenied}
         style={{
           width: '100%', padding: '20px', borderRadius: 'var(--radius-btn)',
           border: '2px solid var(--accent-primary)', background: 'transparent',
-          color: 'var(--text-primary)', cursor: 'pointer', textAlign: 'left',
+          color: 'var(--text-primary)', cursor: locationDenied ? 'default' : 'pointer', textAlign: 'left',
           transition: 'transform 0.2s',
+          opacity: locationDenied ? 0.4 : 1,
         }}
         onPointerDown={e => e.currentTarget.style.transform = 'scale(0.97)'}
         onPointerUp={e => e.currentTarget.style.transform = 'scale(1)'}
@@ -322,9 +354,24 @@ export default function SessionScreen({ onStart, loading, coords, onLocationChan
 
       <div style={{
         position: 'absolute', bottom: '16px',
-        fontSize: '10px', color: 'var(--text-dim)', fontWeight: 600,
+        display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px',
       }}>
-        Powered by Google
+        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+          <span style={{ fontSize: '10px', color: 'var(--text-dim)', fontWeight: 600 }}>Powered by</span>
+          <img
+            src="https://www.gstatic.com/images/branding/googlelogo/2x/googlelogo_light_color_74x24dp.png"
+            alt="Google"
+            style={{ height: '14px', opacity: 0.6 }}
+          />
+        </div>
+        <a
+          href={`${import.meta.env.BASE_URL}privacy.html`}
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{ fontSize: '10px', color: 'var(--text-dim)', fontWeight: 600, textDecoration: 'none' }}
+        >
+          Privacy Policy
+        </a>
       </div>
     </div>
   );
