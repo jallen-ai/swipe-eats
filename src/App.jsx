@@ -502,6 +502,25 @@ export default function App() {
 
       {/* Card area */}
       <div style={{ flex: 1, position: 'relative', display: 'flex', alignItems: 'center' }}>
+        {/* Loading overlay when fetching more restaurants after filter change */}
+        {restaurantsLoading && (
+          <div style={{
+            position: 'absolute', top: '12px', left: '50%', transform: 'translateX(-50%)',
+            zIndex: 50, background: 'var(--bg-card)', borderRadius: '12px',
+            padding: '8px 16px', display: 'flex', alignItems: 'center', gap: '8px',
+            boxShadow: '0 4px 16px rgba(0,0,0,0.3)',
+            animation: 'fadeIn 0.2s ease-out',
+          }}>
+            <div style={{
+              width: '8px', height: '8px', borderRadius: '50%',
+              background: 'var(--accent-secondary)',
+              animation: 'pulse 1.5s ease-in-out infinite',
+            }} />
+            <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-secondary)' }}>
+              Loading more restaurants...
+            </span>
+          </div>
+        )}
         {cardsRemaining <= 0 ? (
           <div style={{ textAlign: 'center', width: '100%', padding: '32px' }}>
             <div style={{ fontSize: '48px', marginBottom: '16px' }}>🍽️</div>
