@@ -2,18 +2,34 @@ import { useState } from 'react';
 import { haptics } from '../utils/haptics';
 import ConfettiCanvas from './ConfettiCanvas';
 
+// Extract city from a full address like "1295 S Elmhurst Rd, Des Plaines, IL 60016"
+function getCityFromAddress(address) {
+  if (!address) return '';
+  const parts = address.split(',').map(p => p.trim());
+  // City is typically the second-to-last part (before "STATE ZIP")
+  return parts.length >= 2 ? parts[parts.length - 2] : '';
+}
+
 function getMapsUrl(restaurant) {
+  // Use Place ID for precise linking when available (Supabase restaurants)
+  if (restaurant.id && restaurant.id.startsWith('ChIJ')) {
+    return `https://www.google.com/maps/place/?q=place_id:${restaurant.id}`;
+  }
   const query = encodeURIComponent(`${restaurant.name} ${restaurant.address || ''}`);
   return `https://www.google.com/maps/search/?api=1&query=${query}`;
 }
 
 function getOpenTableUrl(restaurant) {
-  const query = encodeURIComponent(`${restaurant.name} ${restaurant.address || ''}`);
+  // Search by name + city only — full addresses break OpenTable search
+  const city = getCityFromAddress(restaurant.address);
+  const query = encodeURIComponent(`${restaurant.name} ${city}`.trim());
   return `https://www.opentable.com/s?term=${query}`;
 }
 
 function getDeliveryUrl(app, restaurant) {
-  const query = encodeURIComponent(`${restaurant.name} ${restaurant.address || ''}`);
+  // Search by name + city only — full addresses break delivery app search
+  const city = getCityFromAddress(restaurant.address);
+  const query = encodeURIComponent(`${restaurant.name} ${city}`.trim());
   switch (app) {
     case 'Uber Eats':
       return `https://www.ubereats.com/search?q=${query}`;
