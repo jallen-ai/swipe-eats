@@ -42,7 +42,7 @@ export default function SessionScreen({ onStart, loading, coords, onLocationChan
         return;
       }
       setLocationName(resp.data.formattedAddress);
-      onLocationChange({ lat: resp.data.lat, lng: resp.data.lng });
+      onLocationChange({ lat: resp.data.lat, lng: resp.data.lng }, resp.data.formattedAddress);
       setShowLocationInput(false);
       setLocationQuery('');
       haptics.medium();

@@ -46,6 +46,7 @@ export default function App() {
   const [showSwipeFilters, setShowSwipeFilters] = useState(false);
   const [activeFilters, setActiveFilters] = useState({ maxDistance: 5, selectedPrices: [], openNow: true });
   const [showMatchPrompt, setShowMatchPrompt] = useState(false);
+  const [locationName, setLocationName] = useState(null);
   const [showGroupPanel, setShowGroupPanel] = useState(false);
   const matchPromptShownRef = useRef(false);
 
@@ -353,15 +354,16 @@ export default function App() {
     );
   }
 
-  const handleLocationChange = useCallback((newCoords) => {
+  const handleLocationChange = useCallback((newCoords, name) => {
     if (newCoords) {
       setCoords(newCoords);
+      if (name) setLocationName(name);
     } else {
       // Revert to geolocation
+      setLocationName(null);
       if (geolocateCoordsRef.current) {
         setCoords(geolocateCoordsRef.current);
       } else {
-        // Re-trigger geolocation
         navigator.geolocation?.getCurrentPosition(
           (pos) => setCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
           () => {},
@@ -684,6 +686,9 @@ export default function App() {
           filters={activeFilters}
           onApply={handleSwipeFilterApply}
           onClose={() => setShowSwipeFilters(false)}
+          locationName={locationName}
+          onLocationChange={handleLocationChange}
+          canChangeLocation={mode === 'solo' || (mode === 'group' && session.isCreator)}
         />
       )}
 

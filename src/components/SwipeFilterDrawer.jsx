@@ -1,12 +1,19 @@
 import { useState } from 'react';
 import { haptics } from '../utils/haptics';
+import { supabase } from '../utils/supabase';
 
 const PRICE_LABELS = ['$', '$$', '$$$', '$$$$'];
 
-export default function SwipeFilterDrawer({ filters, onApply, onClose }) {
+export default function SwipeFilterDrawer({ filters, onApply, onClose, locationName, onLocationChange, canChangeLocation }) {
   const [maxDistance, setMaxDistance] = useState(filters.maxDistance ?? 20);
   const [selectedPrices, setSelectedPrices] = useState(filters.selectedPrices ?? []);
   const [openNow, setOpenNow] = useState(filters.openNow ?? false);
+
+  // Location search state
+  const [showLocationInput, setShowLocationInput] = useState(false);
+  const [locationQuery, setLocationQuery] = useState('');
+  const [locationLoading, setLocationLoading] = useState(false);
+  const [locationError, setLocationError] = useState(null);
 
   const togglePrice = (level) => {
     haptics.filterTap();
@@ -18,6 +25,30 @@ export default function SwipeFilterDrawer({ filters, onApply, onClose }) {
   const handleApply = () => {
     haptics.medium();
     onApply({ maxDistance, selectedPrices, openNow });
+  };
+
+  const handleLocationSearch = async () => {
+    if (!locationQuery.trim()) return;
+    setLocationLoading(true);
+    setLocationError(null);
+    try {
+      const resp = await supabase.functions.invoke('geocode', {
+        body: { query: locationQuery.trim() },
+      });
+      const result = resp.data;
+      if (!result?.lat) {
+        setLocationError(result?.error || 'Location not found');
+        return;
+      }
+      onLocationChange({ lat: result.lat, lng: result.lng }, result.formattedAddress);
+      setShowLocationInput(false);
+      setLocationQuery('');
+      haptics.medium();
+    } catch {
+      setLocationError('Location not found');
+    } finally {
+      setLocationLoading(false);
+    }
   };
 
   return (
@@ -54,6 +85,72 @@ export default function SwipeFilterDrawer({ filters, onApply, onClose }) {
             </svg>
           </button>
         </div>
+
+        {/* Location selector */}
+        {canChangeLocation && (
+          <>
+            <button
+              onClick={() => { haptics.filterTap(); setShowLocationInput(!showLocationInput); }}
+              style={{
+                width: '100%', display: 'flex', alignItems: 'center', gap: '8px',
+                background: 'var(--bg-card)', border: 'none', borderRadius: '12px',
+                padding: '12px 14px', cursor: 'pointer', color: 'var(--text-primary)',
+              }}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={locationName ? 'var(--accent-secondary)' : 'var(--text-secondary)'} strokeWidth="2.5">
+                <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/>
+                <circle cx="12" cy="9" r="2.5"/>
+              </svg>
+              <span style={{
+                fontSize: '14px', fontWeight: 700, flex: 1, textAlign: 'left',
+                color: locationName ? 'var(--accent-secondary)' : 'var(--text-secondary)',
+              }}>
+                {locationName || 'Near you'}
+              </span>
+              <span style={{ fontSize: '12px', color: 'var(--text-dim)', fontWeight: 600 }}>Change</span>
+            </button>
+
+            {showLocationInput && (
+              <div style={{
+                display: 'flex', flexDirection: 'column', gap: '10px',
+                marginTop: '-12px',
+              }}>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <input
+                    type="text"
+                    value={locationQuery}
+                    onChange={e => setLocationQuery(e.target.value)}
+                    onKeyDown={e => e.key === 'Enter' && handleLocationSearch()}
+                    placeholder="City or zip code..."
+                    style={{
+                      flex: 1, padding: '10px 14px', borderRadius: '10px',
+                      border: '2px solid var(--bg-surface)', background: 'var(--bg-surface)',
+                      color: 'var(--text-primary)', fontSize: '14px', fontWeight: 600,
+                      fontFamily: 'Nunito', outline: 'none',
+                    }}
+                    autoFocus
+                  />
+                  <button
+                    onClick={handleLocationSearch}
+                    disabled={locationLoading || !locationQuery.trim()}
+                    style={{
+                      padding: '10px 16px', borderRadius: '10px',
+                      border: 'none', background: 'var(--accent-primary)',
+                      color: 'white', fontSize: '13px', fontWeight: 700,
+                      cursor: 'pointer', fontFamily: 'Nunito',
+                      opacity: locationLoading || !locationQuery.trim() ? 0.5 : 1,
+                    }}
+                  >
+                    {locationLoading ? '...' : 'Go'}
+                  </button>
+                </div>
+                {locationError && (
+                  <span style={{ fontSize: '12px', color: '#F44336', fontWeight: 600 }}>{locationError}</span>
+                )}
+              </div>
+            )}
+          </>
+        )}
 
         {/* Distance slider */}
         <div>
