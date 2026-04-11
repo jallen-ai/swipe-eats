@@ -160,6 +160,20 @@ export function useRealtimeSwipes(sessionId, isActive) {
         });
         haptics.memberJoin();
       })
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'session_members',
+        filter: `session_id=eq.${sessionId}`,
+      }, (payload) => {
+        const updated = payload.new;
+        if (!updated) return;
+        setMembers(prev => prev.map(m =>
+          m.user_id === updated.user_id
+            ? { ...m, nickname: updated.nickname }
+            : m
+        ));
+      })
       .on('presence', { event: 'sync' }, () => {
         const state = channel.presenceState();
         const users = Object.values(state).flat();
