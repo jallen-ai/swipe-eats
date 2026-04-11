@@ -44,6 +44,7 @@ export function useRestaurants(radiusMi = 5) {
   const [error, setError] = useState(null);
   const [coords, setCoords] = useState(null);
   const fetchedRadiusRef = useRef(0);
+  const fetchedCoordsRef = useRef(null);
 
   // Request geolocation
   useEffect(() => {
@@ -105,11 +106,18 @@ export function useRestaurants(radiusMi = 5) {
     }
   }, [radiusMi]);
 
-  // Fetch on first coords, and re-fetch only when radius expands beyond what we've already fetched
+  // Fetch when coords change (new location) or radius expands beyond what we've already fetched
   useEffect(() => {
-    if (coords && radiusMi > fetchedRadiusRef.current) {
+    if (!coords) return;
+    const coordsChanged = !fetchedCoordsRef.current ||
+      fetchedCoordsRef.current.lat !== coords.lat ||
+      fetchedCoordsRef.current.lng !== coords.lng;
+    const radiusExpanded = radiusMi > fetchedRadiusRef.current;
+
+    if (coordsChanged || radiusExpanded) {
       fetchRestaurants(coords.lat, coords.lng);
-      fetchedRadiusRef.current = radiusMi;
+      fetchedCoordsRef.current = { lat: coords.lat, lng: coords.lng };
+      fetchedRadiusRef.current = coordsChanged ? radiusMi : Math.max(fetchedRadiusRef.current, radiusMi);
     }
   }, [coords, radiusMi, fetchRestaurants]);
 
