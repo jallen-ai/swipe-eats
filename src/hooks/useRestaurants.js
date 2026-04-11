@@ -115,9 +115,14 @@ export function useRestaurants(radiusMi = 5) {
     const radiusExpanded = radiusMi > fetchedRadiusRef.current;
 
     if (coordsChanged || radiusExpanded) {
+      if (coordsChanged) {
+        // Clear stale restaurants so the app shows loading state for the new location
+        setRestaurants(null);
+        fetchedRadiusRef.current = 0;
+      }
       fetchRestaurants(coords.lat, coords.lng);
       fetchedCoordsRef.current = { lat: coords.lat, lng: coords.lng };
-      fetchedRadiusRef.current = coordsChanged ? radiusMi : Math.max(fetchedRadiusRef.current, radiusMi);
+      fetchedRadiusRef.current = radiusMi;
     }
   }, [coords, radiusMi, fetchRestaurants]);
 

@@ -61,6 +61,7 @@ export default function SessionScreen({ onStart, loading, coords, onLocationChan
     haptics.medium();
   };
 
+  const cantStart = locationDenied || loading;
   const hasActiveFilters = maxDistance < 20 || selectedPrices.length > 0 || openNow;
 
   return (
@@ -201,31 +202,33 @@ export default function SessionScreen({ onStart, loading, coords, onLocationChan
 
       {/* Mode buttons */}
       <button
-        onClick={() => { if (!locationDenied) { haptics.medium(); onStart('solo', filters); } }}
-        disabled={locationDenied}
+        onClick={() => { if (!cantStart) { haptics.medium(); onStart('solo', filters); } }}
+        disabled={cantStart}
         style={{
           width: '100%', padding: '20px', borderRadius: 'var(--radius-btn)',
           border: 'none', background: 'var(--bg-card)', color: 'var(--text-primary)',
-          cursor: locationDenied ? 'default' : 'pointer', textAlign: 'left',
+          cursor: cantStart ? 'default' : 'pointer', textAlign: 'left',
           transition: 'transform 0.2s',
-          opacity: locationDenied ? 0.4 : 1,
+          opacity: cantStart ? 0.4 : 1,
         }}
         onPointerDown={e => e.currentTarget.style.transform = 'scale(0.97)'}
         onPointerUp={e => e.currentTarget.style.transform = 'scale(1)'}
       >
         <div style={{ fontSize: '22px', fontWeight: 800, marginBottom: '4px' }}>Solo Mode</div>
-        <div style={{ fontSize: '14px', color: 'var(--text-secondary)', fontWeight: 600 }}>Just you deciding tonight's dinner</div>
+        <div style={{ fontSize: '14px', color: 'var(--text-secondary)', fontWeight: 600 }}>
+          {loading ? 'Loading restaurants...' : 'Just you deciding tonight\'s dinner'}
+        </div>
       </button>
 
       <button
-        onClick={() => { if (!locationDenied) { haptics.medium(); onStart('group', filters); } }}
-        disabled={locationDenied}
+        onClick={() => { if (!cantStart) { haptics.medium(); onStart('group', filters); } }}
+        disabled={cantStart}
         style={{
           width: '100%', padding: '20px', borderRadius: 'var(--radius-btn)',
           border: '2px solid var(--accent-primary)', background: 'transparent',
-          color: 'var(--text-primary)', cursor: locationDenied ? 'default' : 'pointer', textAlign: 'left',
+          color: 'var(--text-primary)', cursor: cantStart ? 'default' : 'pointer', textAlign: 'left',
           transition: 'transform 0.2s',
-          opacity: locationDenied ? 0.4 : 1,
+          opacity: cantStart ? 0.4 : 1,
         }}
         onPointerDown={e => e.currentTarget.style.transform = 'scale(0.97)'}
         onPointerUp={e => e.currentTarget.style.transform = 'scale(1)'}
