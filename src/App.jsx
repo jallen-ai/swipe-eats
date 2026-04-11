@@ -52,7 +52,7 @@ export default function App() {
   const session = useSession();
   const isGroupActive = mode === 'group' && (session.sessionStatus === 'active' || session.sessionStatus === 'waiting');
   const realtime = useRealtimeSwipes(session.sessionId, isGroupActive);
-  const { restaurants: liveRestaurants, loading: restaurantsLoading, error: restaurantsError, coords, setCoords } = useRestaurants();
+  const { restaurants: liveRestaurants, loading: restaurantsLoading, error: restaurantsError, coords, setCoords } = useRestaurants(activeFilters.maxDistance);
   const geolocateCoordsRef = useRef(null);
 
   // Save initial geolocation coords so we can revert from manual location

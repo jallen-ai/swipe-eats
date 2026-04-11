@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '../utils/supabase';
 import { getCuisineColor, getCuisineGroup, formatPriceLevel, calcDistanceMi, formatDistance } from '../utils/cuisine';
 
@@ -38,11 +38,12 @@ function mapRestaurant(row, userLat, userLng) {
   };
 }
 
-export function useRestaurants() {
+export function useRestaurants(radiusMi = 5) {
   const [restaurants, setRestaurants] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [coords, setCoords] = useState(null);
+  const fetchedRadiusRef = useRef(0);
 
   // Request geolocation
   useEffect(() => {
@@ -71,7 +72,7 @@ export function useRestaurants() {
 
     try {
       const resp = await supabase.functions.invoke('fetch-restaurants', {
-        body: { lat, lng },
+        body: { lat, lng, radiusMi },
       });
 
       if (resp.error) {
@@ -102,13 +103,15 @@ export function useRestaurants() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [radiusMi]);
 
+  // Fetch on first coords, and re-fetch only when radius expands beyond what we've already fetched
   useEffect(() => {
-    if (coords) {
+    if (coords && radiusMi > fetchedRadiusRef.current) {
       fetchRestaurants(coords.lat, coords.lng);
+      fetchedRadiusRef.current = radiusMi;
     }
-  }, [coords, fetchRestaurants]);
+  }, [coords, radiusMi, fetchRestaurants]);
 
   return {
     restaurants,

@@ -8,21 +8,43 @@ const CACHE_DAYS = 30;
 // Supabase client with service role (can write to restaurants table)
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
 
-// Compute grid cell string from lat/lng (rounded to 0.01 ≈ 1.1km)
-function toGridCell(lat: number, lng: number): string {
-  return `${(Math.round(lat * 100) / 100).toFixed(2)}_${(Math.round(lng * 100) / 100).toFixed(2)}`;
+// Tiered grid configuration based on user's distance filter
+const TIERS = {
+  near: { cellSize: 0.01, searchRadius: 800,  gridSpan: 3 },  // ~2mi coverage
+  mid:  { cellSize: 0.04, searchRadius: 3000, gridSpan: 5 },  // ~8.5mi coverage
+  far:  { cellSize: 0.10, searchRadius: 8000, gridSpan: 7 },  // ~24mi coverage
+};
+
+type Tier = typeof TIERS[keyof typeof TIERS];
+
+function getTier(radiusMi: number): Tier {
+  if (radiusMi <= 3) return TIERS.near;
+  if (radiusMi <= 8) return TIERS.mid;
+  return TIERS.far;
 }
 
-// Get 3x3 grid of cells around the user's location
-function getNearbyCells(lat: number, lng: number): string[] {
-  const cLat = Math.round(lat * 100) / 100;
-  const cLng = Math.round(lng * 100) / 100;
+// Compute grid cell string with tier-aware snapping
+function toGridCell(lat: number, lng: number, cellSize: number): string {
+  const snappedLat = Math.round(lat / cellSize) * cellSize;
+  const snappedLng = Math.round(lng / cellSize) * cellSize;
+  const precision = cellSize < 0.02 ? 2 : cellSize < 0.1 ? 2 : 1;
+  // Prefix with cell size to avoid cache collisions between tiers
+  return `${cellSize}:${snappedLat.toFixed(precision)}_${snappedLng.toFixed(precision)}`;
+}
+
+// Build grid of cells around user's location based on tier
+function getNearbyCells(lat: number, lng: number, tier: Tier): string[] {
+  const { cellSize, gridSpan } = tier;
+  const cLat = Math.round(lat / cellSize) * cellSize;
+  const cLng = Math.round(lng / cellSize) * cellSize;
+  const half = Math.floor(gridSpan / 2);
   const cells: string[] = [];
-  for (let dLat = -0.01; dLat <= 0.01; dLat += 0.01) {
-    for (let dLng = -0.01; dLng <= 0.01; dLng += 0.01) {
-      const gLat = (cLat + dLat).toFixed(2);
-      const gLng = (cLng + dLng).toFixed(2);
-      cells.push(`${gLat}_${gLng}`);
+  const precision = cellSize < 0.02 ? 2 : cellSize < 0.1 ? 2 : 1;
+  for (let dLat = -half; dLat <= half; dLat++) {
+    for (let dLng = -half; dLng <= half; dLng++) {
+      const gLat = cLat + dLat * cellSize;
+      const gLng = cLng + dLng * cellSize;
+      cells.push(`${cellSize}:${gLat.toFixed(precision)}_${gLng.toFixed(precision)}`);
     }
   }
   return cells;
@@ -91,7 +113,7 @@ function getCuisineGroup(cuisine: string): string {
 }
 
 // Fetch restaurants from Google Places API for a single grid cell
-async function fetchFromGoogle(cellLat: number, cellLng: number): Promise<any[]> {
+async function fetchFromGoogle(cellLat: number, cellLng: number, searchRadius: number): Promise<any[]> {
   const url = "https://places.googleapis.com/v1/places:searchNearby";
   const body = {
     includedTypes: ["restaurant"],
@@ -99,7 +121,7 @@ async function fetchFromGoogle(cellLat: number, cellLng: number): Promise<any[]>
     locationRestriction: {
       circle: {
         center: { latitude: cellLat, longitude: cellLng },
-        radius: 800, // ~0.5mi radius per cell
+        radius: searchRadius,
       },
     },
   };
@@ -249,7 +271,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { lat, lng } = await req.json();
+    const { lat, lng, radiusMi = 5 } = await req.json();
     if (typeof lat !== "number" || typeof lng !== "number") {
       return new Response(
         JSON.stringify({ error: "lat and lng are required numbers" }),
@@ -257,7 +279,8 @@ Deno.serve(async (req) => {
       );
     }
 
-    const cells = getNearbyCells(lat, lng);
+    const tier = getTier(radiusMi);
+    const cells = getNearbyCells(lat, lng, tier);
     const now = new Date();
 
     // Check which cells are cached
@@ -275,19 +298,22 @@ Deno.serve(async (req) => {
 
     const staleCells = cells.filter((c) => !cachedSet.has(c));
 
-    // Fetch from Google for stale cells
-    for (const cell of staleCells) {
-      const [cellLatStr, cellLngStr] = cell.split("_");
+    // Filter out non-restaurant places (hotels, lodging, etc.)
+    const excludeTypes = new Set([
+      "hotel", "lodging", "motel", "resort_hotel", "extended_stay_hotel",
+      "convenience_store", "gas_station", "grocery_store", "supermarket",
+      "liquor_store", "drugstore", "pharmacy",
+    ]);
+
+    // Process a single stale cell: fetch from Google, filter, cache photo, upsert
+    async function processCell(cell: string) {
+      // Strip the tier prefix to get lat/lng
+      const coordPart = cell.split(":")[1]; // e.g. "42.05_-87.94"
+      const [cellLatStr, cellLngStr] = coordPart.split("_");
       const cellLat = parseFloat(cellLatStr);
       const cellLng = parseFloat(cellLngStr);
 
-      const places = await fetchFromGoogle(cellLat, cellLng);
-      // Filter out non-restaurant places (hotels, lodging, etc.)
-      const excludeTypes = new Set([
-        "hotel", "lodging", "motel", "resort_hotel", "extended_stay_hotel",
-        "convenience_store", "gas_station", "grocery_store", "supermarket",
-        "liquor_store", "drugstore", "pharmacy",
-      ]);
+      const places = await fetchFromGoogle(cellLat, cellLng, tier.searchRadius);
       const filteredPlaces = places.filter((p: any) => {
         const primary = p.primaryType || "";
         if (excludeTypes.has(primary)) return false;
@@ -295,12 +321,12 @@ Deno.serve(async (req) => {
         if (types.includes("lodging") && !types.includes("restaurant")) return false;
         return true;
       });
+
       if (filteredPlaces.length > 0) {
         const restaurants = await Promise.all(
           filteredPlaces.map((p: any) => mapPlace(p, cell))
         );
 
-        // Upsert restaurants
         const { error: upsertError } = await supabase
           .from("restaurants")
           .upsert(restaurants, { onConflict: "place_id" });
@@ -320,11 +346,22 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Fetch all restaurants for the grid from DB
+    // Process stale cells in parallel batches of 10
+    for (let i = 0; i < staleCells.length; i += 10) {
+      const batch = staleCells.slice(i, i + 10);
+      await Promise.all(batch.map(processCell));
+    }
+
+    // Query restaurants by bounding box (works across all tiers)
+    const latDelta = (tier.gridSpan * tier.cellSize) / 2 + 0.01;
+    const lngDelta = (tier.gridSpan * tier.cellSize) / 2 + 0.01;
     const { data: restaurants, error: fetchError } = await supabase
       .from("restaurants")
       .select("*")
-      .in("grid_cell", cells);
+      .gte("lat", lat - latDelta)
+      .lte("lat", lat + latDelta)
+      .gte("lng", lng - lngDelta)
+      .lte("lng", lng + lngDelta);
 
     if (fetchError) {
       return new Response(
