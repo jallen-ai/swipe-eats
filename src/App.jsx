@@ -115,7 +115,7 @@ export default function App() {
           setScreen('groupLink');
         }
       } else {
-        setJoinError(session.sessionError || 'Could not join session');
+        setJoinError(result.error || 'Could not join session');
       }
     } catch (e) {
       console.error('Join failed:', e);

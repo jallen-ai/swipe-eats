@@ -97,8 +97,9 @@ export function useSession() {
     const userLng = userCoords?.lng ?? null;
     const userId = await getUserId();
     if (!userId) {
-      setSessionError('Not authenticated');
-      return { success: false };
+      const err = 'Not authenticated — please try again';
+      setSessionError(err);
+      return { success: false, error: err };
     }
 
     const { data: session, error: fetchError } = await supabase
@@ -108,15 +109,17 @@ export function useSession() {
       .single();
 
     if (fetchError || !session) {
-      setSessionError('Session not found');
+      const err = 'Session not found — the link may be invalid';
+      setSessionError(err);
       setSessionStatus('error');
-      return { success: false };
+      return { success: false, error: err };
     }
 
     if (new Date(session.expires_at) < new Date()) {
+      const err = 'This session has expired';
       setSessionStatus('expired');
-      setSessionError('Session has expired');
-      return { success: false };
+      setSessionError(err);
+      return { success: false, error: err };
     }
 
     // Check if already a member
