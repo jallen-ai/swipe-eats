@@ -93,105 +93,119 @@ export function useSession() {
   }, []);
 
   const joinSession = useCallback(async (id, userCoords, nickname) => {
-    const userLat = userCoords?.lat ?? null;
-    const userLng = userCoords?.lng ?? null;
-    const userId = await getUserId();
-    if (!userId) {
-      const err = 'Not authenticated — please try again';
-      setSessionError(err);
-      return { success: false, error: err };
-    }
-
-    const { data: session, error: fetchError } = await supabase
-      .from('sessions')
-      .select('*')
-      .eq('id', id)
-      .single();
-
-    if (fetchError || !session) {
-      const err = 'Session not found — the link may be invalid';
-      setSessionError(err);
-      setSessionStatus('error');
-      return { success: false, error: err };
-    }
-
-    if (new Date(session.expires_at) < new Date()) {
-      const err = 'This session has expired';
-      setSessionStatus('expired');
-      setSessionError(err);
-      return { success: false, error: err };
-    }
-
-    // Check if already a member
-    const { data: existingMember } = await supabase
-      .from('session_members')
-      .select('user_id')
-      .eq('session_id', id)
-      .eq('user_id', userId)
-      .single();
-
-    const isReturning = !!existingMember;
-    const amCreator = session.creator_id === userId;
-
-    if (!isReturning) {
-      // Register as a new member
-      await supabase.from('session_members').insert({
-        session_id: id,
-        user_id: userId,
-        nickname: nickname || null,
-      });
-
-      // Activate session when first non-creator joins
-      if (session.status === 'waiting' && !amCreator) {
-        await supabase.from('sessions')
-          .update({ status: 'active' })
-          .eq('id', id)
-          .eq('status', 'waiting');
+    try {
+      const userLat = userCoords?.lat ?? null;
+      const userLng = userCoords?.lng ?? null;
+      const userId = await getUserId();
+      if (!userId) {
+        const err = 'Not authenticated — please try again';
+        setSessionError(err);
+        return { success: false, error: err };
       }
+
+      const { data: sess, error: fetchError } = await supabase
+        .from('sessions')
+        .select('*')
+        .eq('id', id)
+        .single();
+
+      if (fetchError || !sess) {
+        const err = fetchError?.message || 'Session not found — the link may be invalid';
+        setSessionError(err);
+        setSessionStatus('error');
+        return { success: false, error: err };
+      }
+
+      if (new Date(sess.expires_at) < new Date()) {
+        const err = 'This session has expired';
+        setSessionStatus('expired');
+        setSessionError(err);
+        return { success: false, error: err };
+      }
+
+      // Check if already a member
+      const { data: existingMember } = await supabase
+        .from('session_members')
+        .select('user_id')
+        .eq('session_id', id)
+        .eq('user_id', userId)
+        .maybeSingle();
+
+      const isReturning = !!existingMember;
+      const amCreator = sess.creator_id === userId;
+
+      if (!isReturning) {
+        const { error: insertErr } = await supabase.from('session_members').insert({
+          session_id: id,
+          user_id: userId,
+          nickname: nickname || null,
+        });
+        if (insertErr) {
+          console.error('session_members insert failed:', insertErr);
+        }
+
+        // Activate session when first non-creator joins
+        if (sess.status === 'waiting' && !amCreator) {
+          await supabase.from('sessions')
+            .update({ status: 'active' })
+            .eq('id', id)
+            .eq('status', 'waiting');
+        }
+      }
+
+      const currentStatus = (!isReturning && sess.status === 'waiting' && !amCreator)
+        ? 'active' : sess.status;
+
+      setSessionId(id);
+      setDeckIds(sess.deck_ids);
+      setIsCreator(amCreator);
+      setCreatorId(sess.creator_id);
+      setGroupName(sess.group_name || null);
+      setSessionStatus(currentStatus);
+
+      const builtDeck = await buildDeckFromIds(sess.deck_ids, userLat, userLng);
+
+      if (!builtDeck || builtDeck.length === 0) {
+        const err = 'Could not load restaurants for this session';
+        setSessionError(err);
+        return { success: false, error: err };
+      }
+
+      // Fetch existing swipes for this user (for resume)
+      const { data: mySwipes } = await supabase
+        .from('swipes')
+        .select('restaurant_id, direction')
+        .eq('session_id', id)
+        .eq('user_id', userId);
+
+      const swipedIds = new Set((mySwipes || []).map(s => s.restaurant_id));
+      const myRightSwipes = new Set((mySwipes || []).filter(s => s.direction === 'right').map(s => s.restaurant_id));
+
+      // Fetch all right swipes from others (for rebuilding matches)
+      const { data: otherSwipes } = await supabase
+        .from('swipes')
+        .select('restaurant_id, user_id, direction')
+        .eq('session_id', id)
+        .neq('user_id', userId)
+        .eq('direction', 'right');
+
+      const otherRightIds = new Set((otherSwipes || []).map(s => s.restaurant_id));
+      const matchIds = new Set([...myRightSwipes].filter(rid => otherRightIds.has(rid)));
+
+      return {
+        success: true,
+        deck: builtDeck,
+        status: currentStatus,
+        swipedIds,
+        matchIds,
+        isReturning,
+      };
+    } catch (e) {
+      console.error('joinSession error:', e);
+      const err = e.message || 'Something went wrong joining the session';
+      setSessionError(err);
+      return { success: false, error: err };
     }
-
-    const currentStatus = (!isReturning && session.status === 'waiting' && !amCreator)
-      ? 'active' : session.status;
-
-    setSessionId(id);
-    setDeckIds(session.deck_ids);
-    setIsCreator(amCreator);
-    setCreatorId(session.creator_id);
-    setGroupName(session.group_name || null);
-    setSessionStatus(currentStatus);
-
-    const builtDeck = await buildDeckFromIds(session.deck_ids, userLat, userLng);
-
-    // Fetch existing swipes for this user (for resume)
-    const { data: mySwipes } = await supabase
-      .from('swipes')
-      .select('restaurant_id, direction')
-      .eq('session_id', id)
-      .eq('user_id', userId);
-
-    const swipedIds = new Set((mySwipes || []).map(s => s.restaurant_id));
-    const myRightSwipes = new Set((mySwipes || []).filter(s => s.direction === 'right').map(s => s.restaurant_id));
-
-    // Fetch all right swipes from others (for rebuilding matches)
-    const { data: otherSwipes } = await supabase
-      .from('swipes')
-      .select('restaurant_id, user_id, direction')
-      .eq('session_id', id)
-      .neq('user_id', userId)
-      .eq('direction', 'right');
-
-    const otherRightIds = new Set((otherSwipes || []).map(s => s.restaurant_id));
-    // Matches = restaurants I swiped right AND at least one other person swiped right
-    const matchIds = new Set([...myRightSwipes].filter(rid => otherRightIds.has(rid)));
-
-    return {
-      success: true,
-      deck: builtDeck,
-      status: currentStatus,
-      swipedIds,
-      matchIds,
-      isReturning,
-    };
   }, []);
 
   const buildDeckFromIds = async (ids, userLat, userLng) => {
