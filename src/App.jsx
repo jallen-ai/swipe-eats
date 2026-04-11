@@ -76,51 +76,60 @@ export default function App() {
     }).sort((a, b) => (a.distanceMi ?? 999) - (b.distanceMi ?? 999));
   })();
 
-  // Handle join links on mount — wait for coords so distances are accurate
+  // Handle join links on mount — proceed even without geolocation (coords are optional for joiners)
   const joinAttemptedRef = useRef(false);
-  useEffect(() => {
-    if (!initialJoinId || joinAttemptedRef.current) return;
-    if (!coords) return; // wait for geolocation
-    joinAttemptedRef.current = true;
 
-    session.joinSession(initialJoinId, coords).then(result => {
-      if (result.success && result.deck) {
-        setDeck(result.deck);
-        setCardKey(k => k + 1);
+  const handleJoinResult = (result) => {
+    if (result.success && result.deck) {
+      setDeck(result.deck);
+      setCardKey(k => k + 1);
 
-        // Resume: skip past already-swiped cards
-        if (result.swipedIds && result.swipedIds.size > 0) {
-          let resumeIndex = 0;
-          for (let i = 0; i < result.deck.length; i++) {
-            if (result.swipedIds.has(result.deck[i].id)) {
-              resumeIndex = i + 1;
-            } else {
-              break;
-            }
+      if (result.swipedIds && result.swipedIds.size > 0) {
+        let resumeIndex = 0;
+        for (let i = 0; i < result.deck.length; i++) {
+          if (result.swipedIds.has(result.deck[i].id)) {
+            resumeIndex = i + 1;
+          } else {
+            break;
           }
-          setCurrentIndex(resumeIndex);
-
-          // Rebuild matches from DB
-          if (result.matchIds && result.matchIds.size > 0) {
-            const restoredMatches = result.deck.filter(r => result.matchIds.has(r.id));
-            setMatches(restoredMatches);
-          }
-        } else {
-          setCurrentIndex(0);
         }
+        setCurrentIndex(resumeIndex);
 
-        // Returning users who already started → go straight to swiping
-        if (result.isReturning && result.status === 'active') {
-          setScreen('swiping');
-        } else {
-          setScreen('groupLink');
+        if (result.matchIds && result.matchIds.size > 0) {
+          const restoredMatches = result.deck.filter(r => result.matchIds.has(r.id));
+          setMatches(restoredMatches);
         }
       } else {
-        setMode(null);
-        setScreen('session');
+        setCurrentIndex(0);
       }
-    });
-  }, [coords]); // eslint-disable-line react-hooks/exhaustive-deps
+
+      if (result.isReturning && result.status === 'active') {
+        setScreen('swiping');
+      } else {
+        setScreen('groupLink');
+      }
+    } else {
+      setMode(null);
+      setScreen('session');
+    }
+  };
+
+  useEffect(() => {
+    if (!initialJoinId || joinAttemptedRef.current) return;
+    // Proceed with coords if available, or after geo settles (denied), or after 3s timeout
+    const geoSettled = coords || restaurantsError === 'location_denied';
+    if (!geoSettled) {
+      const timer = setTimeout(() => {
+        if (!joinAttemptedRef.current) {
+          joinAttemptedRef.current = true;
+          session.joinSession(initialJoinId, null).then(handleJoinResult);
+        }
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+    joinAttemptedRef.current = true;
+    session.joinSession(initialJoinId, coords).then(handleJoinResult);
+  }, [coords, restaurantsError]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // When session deck is ready (for duo mode), use it
   useEffect(() => {
