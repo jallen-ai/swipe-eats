@@ -3,7 +3,7 @@ import { haptics } from './utils/haptics';
 import { PreferenceEngine } from './utils/PreferenceEngine';
 import { FALLBACK_RESTAURANTS } from './data/restaurants';
 import { calcDistanceMi, formatDistance } from './utils/cuisine';
-import { supabase } from './utils/supabase';
+import { supabase, authReadyPromise } from './utils/supabase';
 import { useSession } from './hooks/useSession';
 import { useRealtimeSwipes } from './hooks/useRealtimeSwipes';
 import { useRestaurants } from './hooks/useRestaurants';
@@ -76,60 +76,58 @@ export default function App() {
     }).sort((a, b) => (a.distanceMi ?? 999) - (b.distanceMi ?? 999));
   })();
 
-  // Handle join links on mount — proceed even without geolocation (coords are optional for joiners)
+  // Handle join links — wait for auth (not geolocation), with error handling and retry
   const joinAttemptedRef = useRef(false);
+  const [joinError, setJoinError] = useState(null);
 
-  const handleJoinResult = (result) => {
-    if (result.success && result.deck) {
-      setDeck(result.deck);
-      setCardKey(k => k + 1);
+  const attemptJoin = useCallback(async (sessionId) => {
+    setJoinError(null);
+    try {
+      // Wait for auth to be ready before attempting any DB operations
+      await authReadyPromise;
+      const result = await session.joinSession(sessionId, coords);
+      if (result.success && result.deck) {
+        setDeck(result.deck);
+        setCardKey(k => k + 1);
 
-      if (result.swipedIds && result.swipedIds.size > 0) {
-        let resumeIndex = 0;
-        for (let i = 0; i < result.deck.length; i++) {
-          if (result.swipedIds.has(result.deck[i].id)) {
-            resumeIndex = i + 1;
-          } else {
-            break;
+        if (result.swipedIds && result.swipedIds.size > 0) {
+          let resumeIndex = 0;
+          for (let i = 0; i < result.deck.length; i++) {
+            if (result.swipedIds.has(result.deck[i].id)) {
+              resumeIndex = i + 1;
+            } else {
+              break;
+            }
           }
-        }
-        setCurrentIndex(resumeIndex);
+          setCurrentIndex(resumeIndex);
 
-        if (result.matchIds && result.matchIds.size > 0) {
-          const restoredMatches = result.deck.filter(r => result.matchIds.has(r.id));
-          setMatches(restoredMatches);
+          if (result.matchIds && result.matchIds.size > 0) {
+            const restoredMatches = result.deck.filter(r => result.matchIds.has(r.id));
+            setMatches(restoredMatches);
+          }
+        } else {
+          setCurrentIndex(0);
+        }
+
+        if (result.isReturning && result.status === 'active') {
+          setScreen('swiping');
+        } else {
+          setScreen('groupLink');
         }
       } else {
-        setCurrentIndex(0);
+        setJoinError(session.sessionError || 'Could not join session');
       }
-
-      if (result.isReturning && result.status === 'active') {
-        setScreen('swiping');
-      } else {
-        setScreen('groupLink');
-      }
-    } else {
-      setMode(null);
-      setScreen('session');
+    } catch (e) {
+      console.error('Join failed:', e);
+      setJoinError('Something went wrong. Check your connection and try again.');
     }
-  };
+  }, [coords, session]);
 
   useEffect(() => {
     if (!initialJoinId || joinAttemptedRef.current) return;
-    // Proceed with coords if available, or after geo settles (denied), or after 3s timeout
-    const geoSettled = coords || restaurantsError === 'location_denied';
-    if (!geoSettled) {
-      const timer = setTimeout(() => {
-        if (!joinAttemptedRef.current) {
-          joinAttemptedRef.current = true;
-          session.joinSession(initialJoinId, null).then(handleJoinResult);
-        }
-      }, 3000);
-      return () => clearTimeout(timer);
-    }
     joinAttemptedRef.current = true;
-    session.joinSession(initialJoinId, coords).then(handleJoinResult);
-  }, [coords, restaurantsError]); // eslint-disable-line react-hooks/exhaustive-deps
+    attemptJoin(initialJoinId);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // When session deck is ready (for duo mode), use it
   useEffect(() => {
@@ -378,16 +376,52 @@ export default function App() {
       <div style={{
         height: '100%', display: 'flex', flexDirection: 'column',
         justifyContent: 'center', alignItems: 'center', gap: '16px',
+        padding: '32px',
       }}>
-        <div style={{
-          width: '48px', height: '48px', borderRadius: '50%',
-          border: '3px solid var(--bg-surface)',
-          borderTopColor: 'var(--accent-primary)',
-          animation: 'spin 0.8s linear infinite',
-        }} />
-        <p style={{ color: 'var(--text-secondary)', fontSize: '15px', fontWeight: 700 }}>
-          Joining group...
-        </p>
+        {joinError ? (
+          <>
+            <div style={{ fontSize: '48px' }}>😕</div>
+            <h2 style={{ fontSize: '20px', fontWeight: 800, textAlign: 'center' }}>
+              Couldn't join the group
+            </h2>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '14px', fontWeight: 600, textAlign: 'center' }}>
+              {joinError}
+            </p>
+            <button
+              onClick={() => {
+                joinAttemptedRef.current = false;
+                setJoinError(null);
+                attemptJoin(initialJoinId);
+              }}
+              style={{
+                marginTop: '8px', padding: '14px 32px', borderRadius: 'var(--radius-btn)',
+                border: 'none', background: 'var(--accent-primary)', color: 'white',
+                fontSize: '16px', fontWeight: 800, cursor: 'pointer', fontFamily: 'Nunito',
+              }}
+            >Try Again</button>
+            <button
+              onClick={goHome}
+              style={{
+                marginTop: '4px', padding: '10px 24px', borderRadius: 'var(--radius-btn)',
+                border: '1px solid var(--bg-surface)', background: 'transparent',
+                color: 'var(--text-secondary)', fontSize: '14px', fontWeight: 700,
+                cursor: 'pointer', fontFamily: 'Nunito',
+              }}
+            >Go Home</button>
+          </>
+        ) : (
+          <>
+            <div style={{
+              width: '48px', height: '48px', borderRadius: '50%',
+              border: '3px solid var(--bg-surface)',
+              borderTopColor: 'var(--accent-primary)',
+              animation: 'spin 0.8s linear infinite',
+            }} />
+            <p style={{ color: 'var(--text-secondary)', fontSize: '15px', fontWeight: 700 }}>
+              Joining group...
+            </p>
+          </>
+        )}
       </div>
     );
   }

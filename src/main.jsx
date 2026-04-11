@@ -4,20 +4,12 @@ import App from './App'
 import './styles.css'
 import { ensureAnonymousUser } from './utils/supabase'
 
-const AUTH_TIMEOUT_MS = 5000;
+// Start auth immediately (retries internally with backoff)
+ensureAnonymousUser();
 
-const authWithTimeout = Promise.race([
-  ensureAnonymousUser(),
-  new Promise((resolve) => setTimeout(() => {
-    console.warn('Supabase auth timed out after 5s — rendering app without auth');
-    resolve();
-  }, AUTH_TIMEOUT_MS)),
-]);
-
-authWithTimeout.then(() => {
-  ReactDOM.createRoot(document.getElementById('root')).render(
-    <React.StrictMode>
-      <App />
-    </React.StrictMode>
-  )
-})
+// Render the app right away — components that need auth await authReadyPromise
+ReactDOM.createRoot(document.getElementById('root')).render(
+  <React.StrictMode>
+    <App />
+  </React.StrictMode>
+)
