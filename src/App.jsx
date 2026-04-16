@@ -232,6 +232,15 @@ export default function App() {
     }
   };
 
+  const handleGoSolo = useCallback(() => {
+    setMode('solo');
+    const deckToUse = (session.deck && session.deck.length > 0)
+      ? session.deck
+      : applyFilters(availableRestaurants || FALLBACK_RESTAURANTS, activeFilters);
+    initDeck(deckToUse);
+    setScreen('swiping');
+  }, [session.deck, availableRestaurants, activeFilters, applyFilters, initDeck]);
+
   const handleGroupContinue = async (nickname, groupNameInput) => {
     // Save nickname if provided
     if (nickname) {
@@ -445,6 +454,7 @@ export default function App() {
         memberCount={realtime.memberCount || 1}
         onContinue={handleGroupContinue}
         onBack={goHome}
+        onSolo={handleGoSolo}
         isJoiner={!session.isCreator}
         groupName={session.groupName}
       />

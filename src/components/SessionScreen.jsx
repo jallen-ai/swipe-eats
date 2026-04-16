@@ -330,22 +330,6 @@ export default function SessionScreen({ onStart, loading, coords, onLocationChan
         Let's Nosh
       </button>
 
-      {/* Eat Alone (solo escape) */}
-      <button
-        onClick={() => { if (!cantStart) { haptics.light(); onStart('solo', filters); } }}
-        disabled={cantStart}
-        style={{
-          background: 'none', border: 'none', cursor: cantStart ? 'default' : 'pointer',
-          color: 'var(--text-secondary)', fontSize: '14px', fontWeight: 700,
-          fontFamily: 'Nunito', padding: '4px 8px',
-          textDecoration: 'underline', textDecorationColor: 'var(--text-dim)',
-          textUnderlineOffset: '3px',
-          opacity: cantStart ? 0.4 : 1,
-        }}
-      >
-        Eat Alone
-      </button>
-
       {loading && (
         <div style={{
           display: 'flex', alignItems: 'center', gap: '8px',
