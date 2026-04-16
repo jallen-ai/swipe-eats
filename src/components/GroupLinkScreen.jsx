@@ -65,26 +65,19 @@ export default function GroupLinkScreen({ sessionId, memberCount, onContinue, on
         display: 'flex',
         flexDirection: 'column',
         padding: '72px 28px 24px',
-        gap: '20px',
+        gap: '18px',
         overflow: 'auto',
       }}>
         <div style={{ textAlign: 'center' }}>
-          <div style={{
-            fontSize: '11px', fontWeight: 800, letterSpacing: '1.5px',
-            color: 'var(--accent-secondary)', textTransform: 'uppercase',
-            marginBottom: '8px',
-          }}>
-            {isJoiner ? 'Joined' : 'Your Group'}
-          </div>
-          <h2 style={{ fontSize: '26px', fontWeight: 900, lineHeight: 1.2, marginBottom: '8px' }}>
+          <h2 style={{ fontSize: '28px', fontWeight: 900, lineHeight: 1.2, marginBottom: '8px' }}>
             {isJoiner
               ? (existingGroupName || "You're in!")
-              : hasMembers ? `${memberCount} in the group` : 'Configure your group'}
+              : hasMembers ? `${memberCount} in the group` : 'Your group'}
           </h2>
           <p style={{ color: 'var(--text-secondary)', fontSize: '14px', fontWeight: 600, margin: 0, lineHeight: 1.4 }}>
             {isJoiner
-              ? 'Swipe through restaurants and find ones the group agrees on.'
-              : 'Everyone swipes the same restaurants. Matches are where you all say yes.'}
+              ? 'Swipe the deck and find spots the group agrees on.'
+              : 'Everyone swipes the same spots. Matches win.'}
           </p>
         </div>
 
@@ -93,21 +86,9 @@ export default function GroupLinkScreen({ sessionId, memberCount, onContinue, on
             type="text"
             value={groupName}
             onChange={e => setGroupName(e.target.value)}
-            placeholder="Group name (optional)"
+            placeholder="Group name"
             maxLength={40}
-            style={{
-              width: '100%',
-              padding: '14px 16px',
-              borderRadius: 'var(--radius-btn)',
-              border: '1px solid var(--border-hairline)',
-              background: 'var(--bg-card)',
-              color: 'var(--text-primary)',
-              fontSize: '16px',
-              fontWeight: 700,
-              fontFamily: 'Nunito',
-              outline: 'none',
-              boxSizing: 'border-box',
-            }}
+            style={inputStyle}
             onFocus={e => e.target.style.borderColor = 'var(--accent-secondary)'}
             onBlur={e => e.target.style.borderColor = 'var(--border-hairline)'}
           />
@@ -117,133 +98,83 @@ export default function GroupLinkScreen({ sessionId, memberCount, onContinue, on
           type="text"
           value={nickname}
           onChange={e => setNickname(e.target.value)}
-          placeholder="Your name (optional)"
+          placeholder="Your name"
           maxLength={20}
-          style={{
-            width: '100%',
-            padding: '14px 16px',
-            borderRadius: 'var(--radius-btn)',
-            border: '1px solid var(--border-hairline)',
-            background: 'var(--bg-card)',
-            color: 'var(--text-primary)',
-            fontSize: '16px',
-            fontWeight: 700,
-            fontFamily: 'Nunito',
-            outline: 'none',
-            boxSizing: 'border-box',
-          }}
+          style={inputStyle}
           onFocus={e => e.target.style.borderColor = 'var(--accent-secondary)'}
           onBlur={e => e.target.style.borderColor = 'var(--border-hairline)'}
         />
 
         {!isJoiner && (
-          <div style={{
-            width: '100%',
-            background: 'var(--bg-card)',
-            border: '1px solid var(--border-hairline)',
-            borderRadius: 'var(--radius-btn)',
-            padding: '16px',
-            display: 'flex', flexDirection: 'column', gap: '12px',
-          }}>
-            <div style={{
-              fontSize: '11px', fontWeight: 800, letterSpacing: '1.2px',
-              color: 'var(--text-dim)', textTransform: 'uppercase',
-            }}>
-              Invite link
-            </div>
-            <div
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            <button
               onClick={copyLink}
               style={{
-                display: 'flex', alignItems: 'center', gap: '10px',
-                padding: '12px 14px',
-                background: 'var(--bg-primary)',
-                borderRadius: '12px',
+                width: '100%', padding: '14px 16px',
+                borderRadius: 'var(--radius-btn)',
                 border: '1px dashed var(--border-hairline)',
+                background: 'var(--bg-card)',
+                color: copied ? 'var(--accent-secondary)' : 'var(--text-primary)',
                 cursor: 'pointer',
-                minWidth: 0,
+                display: 'flex', alignItems: 'center', gap: '10px',
+                fontFamily: 'Nunito',
+                transition: 'color 0.2s, border-color 0.2s',
+                borderColor: copied ? 'var(--accent-secondary)' : 'var(--border-hairline)',
               }}
             >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-dim)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
-                <path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/>
-                <path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/>
-              </svg>
+              {copied ? (
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+                  <polyline points="20 6 9 17 4 12"/>
+                </svg>
+              ) : (
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text-dim)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+                  <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                  <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/>
+                </svg>
+              )}
               <span style={{
-                fontSize: '14px', fontWeight: 700, color: 'var(--text-primary)',
+                fontSize: '14px', fontWeight: 700,
                 flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                 fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
+                textAlign: 'left',
               }}>
-                {displayLink}
+                {copied ? 'Copied to clipboard' : displayLink}
               </span>
-            </div>
-            <div style={{ display: 'flex', gap: '8px' }}>
-              <button
-                onClick={copyLink}
-                style={{
-                  flex: 1,
-                  padding: '12px',
-                  borderRadius: '12px',
-                  border: 'none',
-                  background: copied ? 'var(--accent-secondary-soft)' : 'var(--bg-surface)',
-                  color: copied ? 'var(--accent-secondary)' : 'var(--text-primary)',
-                  cursor: 'pointer',
-                  fontSize: '14px', fontWeight: 800,
-                  fontFamily: 'Nunito',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
-                  transition: 'all 0.2s',
-                }}
-              >
-                {copied ? (
-                  <>
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-                    Copied!
-                  </>
-                ) : (
-                  <>
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                      <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
-                      <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/>
-                    </svg>
-                    Copy
-                  </>
-                )}
-              </button>
-              <button
-                onClick={shareLink}
-                style={{
-                  flex: 1,
-                  padding: '12px',
-                  borderRadius: '12px',
-                  border: 'none',
-                  background: 'linear-gradient(135deg, var(--accent-secondary), #1AAF8B)',
-                  color: 'white',
-                  cursor: 'pointer',
-                  fontSize: '14px', fontWeight: 800,
-                  fontFamily: 'Nunito',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
-                  boxShadow: '0 2px 10px var(--accent-secondary-glow)',
-                }}
-              >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8"/>
-                  <polyline points="16 6 12 2 8 6"/>
-                  <line x1="12" y1="2" x2="12" y2="15"/>
-                </svg>
-                Share
-              </button>
-            </div>
+            </button>
+
+            <button
+              onClick={shareLink}
+              style={{
+                width: '100%', padding: '14px',
+                borderRadius: 'var(--radius-btn)',
+                border: 'none',
+                background: 'linear-gradient(135deg, var(--accent-secondary), #1AAF8B)',
+                color: 'white',
+                cursor: 'pointer',
+                fontSize: '15px', fontWeight: 800,
+                fontFamily: 'Nunito',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
+                boxShadow: '0 2px 12px var(--accent-secondary-glow)',
+              }}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8"/>
+                <polyline points="16 6 12 2 8 6"/>
+                <line x1="12" y1="2" x2="12" y2="15"/>
+              </svg>
+              Share invite
+            </button>
           </div>
         )}
 
-        {/* Member avatars */}
         {memberCount > 0 && (
           <div style={{
             display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px',
-            padding: '4px',
           }}>
             <div style={{ display: 'flex' }}>
               {Array.from({ length: Math.min(memberCount, 5) }).map((_, i) => (
                 <div key={i} style={{
-                  width: '32px', height: '32px', borderRadius: '50%',
+                  width: '30px', height: '30px', borderRadius: '50%',
                   background: i === 0
                     ? 'linear-gradient(135deg, var(--accent-secondary), #1AAF8B)'
                     : 'var(--bg-surface)',
@@ -251,17 +182,15 @@ export default function GroupLinkScreen({ sessionId, memberCount, onContinue, on
                   marginLeft: i === 0 ? 0 : '-10px',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                   color: i === 0 ? 'white' : 'var(--text-secondary)',
-                  fontSize: '13px', fontWeight: 900, fontFamily: 'Nunito',
+                  fontSize: '12px', fontWeight: 900, fontFamily: 'Nunito',
                   animation: `matchPop 0.3s ease-out ${i * 0.08}s both`,
                 }}>
                   {i === 0 ? initial : '•'}
                 </div>
               ))}
             </div>
-            <span style={{
-              fontSize: '13px', color: 'var(--text-secondary)', fontWeight: 700,
-            }}>
-              {memberCount === 1 ? 'Just you — share the link!' : `${memberCount} in the group`}
+            <span style={{ fontSize: '13px', color: 'var(--text-secondary)', fontWeight: 700 }}>
+              {memberCount === 1 ? 'Just you so far' : `${memberCount} joined`}
             </span>
           </div>
         )}
@@ -280,7 +209,6 @@ export default function GroupLinkScreen({ sessionId, memberCount, onContinue, on
             fontWeight: 800,
             fontFamily: 'Nunito',
             boxShadow: '0 4px 20px var(--accent-primary-glow)',
-            marginTop: 'auto',
           }}
         >
           Start Swiping!
@@ -292,15 +220,8 @@ export default function GroupLinkScreen({ sessionId, memberCount, onContinue, on
         <div style={{
           borderTop: '1px solid var(--border-hairline)',
           background: 'var(--bg-card)',
-          padding: '16px 28px 24px',
-          display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px',
+          padding: '14px 28px 20px',
         }}>
-          <div style={{
-            fontSize: '11px', fontWeight: 800, color: 'var(--text-dim)',
-            textTransform: 'uppercase', letterSpacing: '1.2px',
-          }}>
-            Dining solo?
-          </div>
           <button
             onClick={() => { haptics.light(); onSolo(); }}
             style={{
@@ -314,12 +235,30 @@ export default function GroupLinkScreen({ sessionId, memberCount, onContinue, on
               fontWeight: 800,
               fontFamily: 'Nunito',
               cursor: 'pointer',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
             }}
           >
-            Eat Alone
+            Eat alone instead
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M5 12h14M12 5l7 7-7 7"/>
+            </svg>
           </button>
         </div>
       )}
     </div>
   );
 }
+
+const inputStyle = {
+  width: '100%',
+  padding: '14px 16px',
+  borderRadius: 'var(--radius-btn)',
+  border: '1px solid var(--border-hairline)',
+  background: 'var(--bg-card)',
+  color: 'var(--text-primary)',
+  fontSize: '16px',
+  fontWeight: 700,
+  fontFamily: 'Nunito',
+  outline: 'none',
+  boxSizing: 'border-box',
+};
