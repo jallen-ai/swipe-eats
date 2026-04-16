@@ -44,7 +44,7 @@ export default function App() {
   const [cardKey, setCardKey] = useState(0);
   const [choosingForMe, setChoosingForMe] = useState(false);
   const [showSwipeFilters, setShowSwipeFilters] = useState(false);
-  const [activeFilters, setActiveFilters] = useState({ maxDistance: 5, selectedPrices: [], openNow: true });
+  const [activeFilters, setActiveFilters] = useState({ maxDistance: 5, selectedPrices: [], openNow: true, delivery: false, reservations: false });
   const [showMatchPrompt, setShowMatchPrompt] = useState(false);
   const [locationName, setLocationName] = useState(null);
   const [showGroupPanel, setShowGroupPanel] = useState(false);
@@ -206,6 +206,12 @@ export default function App() {
         const status = isOpenNow(r.hours);
         return status.isOpen !== false; // keep open and unknown (null)
       });
+    }
+    if (filters.delivery) {
+      filtered = filtered.filter(r => r.delivery !== false);
+    }
+    if (filters.reservations) {
+      filtered = filtered.filter(r => r.reservations !== false);
     }
     return filtered;
   }, []);
@@ -529,7 +535,7 @@ export default function App() {
               style={{
                 width: '32px', height: '32px', borderRadius: '10px',
                 border: 'none', background: 'var(--bg-surface)',
-                color: (activeFilters.maxDistance < 20 || activeFilters.selectedPrices.length > 0 || activeFilters.openNow)
+                color: (activeFilters.maxDistance < 20 || activeFilters.selectedPrices.length > 0 || activeFilters.openNow || activeFilters.delivery || activeFilters.reservations)
                   ? 'var(--accent-secondary)' : 'var(--text-secondary)',
                 cursor: 'pointer',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -713,7 +719,8 @@ export default function App() {
           animation: 'fadeIn 0.3s ease-out',
         }}>
           <div style={{
-            background: 'var(--bg-card)', borderRadius: '20px',
+            background: 'var(--bg-elevated)', borderRadius: '20px',
+            border: '1px solid var(--border-hairline)',
             padding: '28px', width: '100%', maxWidth: '340px',
             textAlign: 'center',
           }}>

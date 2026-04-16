@@ -23,19 +23,23 @@
 }
 
 :root {
-  --bg-primary: #141420;
-  --bg-card: #1E1E2E;
-  --bg-surface: #252536;
+  color-scheme: dark;
+  --bg-primary: #08080C;
+  --bg-card: #13131A;
+  --bg-surface: #1E1E26;
+  --bg-elevated: #1A1A22;
   --accent-primary: #E85D3A;
-  --accent-primary-glow: rgba(232, 93, 58, 0.4);
+  --accent-primary-glow: rgba(232, 93, 58, 0.45);
   --accent-secondary: #2DD4A8;
-  --accent-secondary-glow: rgba(45, 212, 168, 0.3);
+  --accent-secondary-soft: rgba(45, 212, 168, 0.15);
+  --accent-secondary-glow: rgba(45, 212, 168, 0.35);
   --text-primary: #F5F5F7;
-  --text-secondary: #9696A8;
-  --text-dim: #5E5E72;
+  --text-secondary: #A8A8B8;
+  --text-dim: #6A6A78;
+  --border-hairline: rgba(255, 255, 255, 0.05);
   --radius-card: 24px;
   --radius-btn: 16px;
-  --shadow-card: 0 8px 32px rgba(0,0,0,0.4);
+  --shadow-card: 0 12px 40px rgba(0,0,0,0.6);
 }
 
 html, body {
@@ -98,9 +102,9 @@ input[type="range"]::-webkit-slider-thumb {
   width: 20px;
   height: 20px;
   border-radius: 50%;
-  background: var(--accent-primary);
+  background: var(--accent-secondary);
   cursor: pointer;
-  box-shadow: 0 2px 8px var(--accent-primary-glow);
+  box-shadow: 0 2px 8px var(--accent-secondary-glow);
 }
 
 @keyframes matchListSlide {

@@ -24,7 +24,7 @@ export default function SwipeFilterDrawer({ filters, onApply, onClose, locationN
 
   const handleApply = () => {
     haptics.medium();
-    onApply({ maxDistance, selectedPrices, openNow });
+    onApply({ ...filters, maxDistance, selectedPrices, openNow });
   };
 
   const handleLocationSearch = async () => {
@@ -156,7 +156,7 @@ export default function SwipeFilterDrawer({ filters, onApply, onClose, locationN
         <div>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
             <label style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-secondary)' }}>Max Distance</label>
-            <span style={{ fontSize: '13px', fontWeight: 800, color: 'var(--accent-primary)' }}>{maxDistance} mi</span>
+            <span style={{ fontSize: '13px', fontWeight: 800, color: 'var(--accent-secondary)' }}>{maxDistance} mi</span>
           </div>
           <input
             type="range" min="1" max="20" value={maxDistance}
@@ -164,7 +164,7 @@ export default function SwipeFilterDrawer({ filters, onApply, onClose, locationN
             style={{
               width: '100%', height: '4px', borderRadius: '2px',
               appearance: 'none', WebkitAppearance: 'none',
-              background: `linear-gradient(to right, var(--accent-primary) ${(maxDistance - 1) / 19 * 100}%, var(--bg-surface) ${(maxDistance - 1) / 19 * 100}%)`,
+              background: `linear-gradient(to right, var(--accent-secondary) ${(maxDistance - 1) / 19 * 100}%, var(--bg-surface) ${(maxDistance - 1) / 19 * 100}%)`,
               outline: 'none', cursor: 'pointer',
             }}
           />
@@ -185,9 +185,9 @@ export default function SwipeFilterDrawer({ filters, onApply, onClose, locationN
                   onClick={() => togglePrice(level)}
                   style={{
                     flex: 1, padding: '8px', borderRadius: '10px',
-                    border: isActive ? '2px solid var(--accent-primary)' : '2px solid var(--bg-surface)',
-                    background: isActive ? 'rgba(232, 93, 58, 0.15)' : 'transparent',
-                    color: isActive ? 'var(--accent-primary)' : 'var(--text-dim)',
+                    border: isActive ? '2px solid var(--accent-secondary)' : '2px solid var(--bg-surface)',
+                    background: isActive ? 'var(--accent-secondary-soft)' : 'transparent',
+                    color: isActive ? 'var(--accent-secondary)' : 'var(--text-dim)',
                     fontSize: '14px', fontWeight: 800, cursor: 'pointer',
                     fontFamily: 'Nunito',
                   }}
@@ -207,7 +207,7 @@ export default function SwipeFilterDrawer({ filters, onApply, onClose, locationN
             style={{
               width: '44px', height: '24px', borderRadius: '12px',
               border: 'none', cursor: 'pointer', padding: '2px',
-              background: openNow ? 'var(--accent-primary)' : 'var(--bg-surface)',
+              background: openNow ? 'var(--accent-secondary)' : 'var(--bg-surface)',
               transition: 'background 0.2s',
               display: 'flex', alignItems: 'center',
             }}
