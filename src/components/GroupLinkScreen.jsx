@@ -43,6 +43,7 @@ export default function GroupLinkScreen({ sessionId, memberCount, onContinue, on
       display: 'flex',
       flexDirection: 'column',
       position: 'relative',
+      overflowY: 'auto',
     }}>
       <button
         onClick={() => { haptics.navTransition(); onBack(); }}
@@ -61,12 +62,10 @@ export default function GroupLinkScreen({ sessionId, memberCount, onContinue, on
 
       {/* Configure your group — top section */}
       <div style={{
-        flex: 1,
         display: 'flex',
         flexDirection: 'column',
-        padding: '72px 28px 24px',
+        padding: '72px 28px 20px',
         gap: '18px',
-        overflow: 'auto',
       }}>
         <div style={{ textAlign: 'center' }}>
           <h2 style={{ fontSize: '28px', fontWeight: 900, lineHeight: 1.2, marginBottom: '8px' }}>
@@ -215,13 +214,9 @@ export default function GroupLinkScreen({ sessionId, memberCount, onContinue, on
         </button>
       </div>
 
-      {/* Dining solo — bottom section */}
+      {/* Dining solo — inline below the group CTA */}
       {!isJoiner && onSolo && (
-        <div style={{
-          borderTop: '1px solid var(--border-hairline)',
-          background: 'var(--bg-card)',
-          padding: '14px 28px 20px',
-        }}>
+        <div style={{ padding: '0 28px 28px' }}>
           <button
             onClick={() => { haptics.light(); onSolo(); }}
             style={{
@@ -238,7 +233,7 @@ export default function GroupLinkScreen({ sessionId, memberCount, onContinue, on
               display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
             }}
           >
-            Eat alone instead
+            Dine solo
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <path d="M5 12h14M12 5l7 7-7 7"/>
             </svg>
