@@ -18,6 +18,7 @@ const EXPERIENCE_DEFAULTS = {
 
 export default function SessionScreen({ onStart, loading, coords, onLocationChange, locationError: geoError }) {
   const [experience, setExperience] = useState('delivery');
+  const [starting, setStarting] = useState(false);
   const [maxDistance, setMaxDistance] = useState(EXPERIENCE_DEFAULTS.delivery.maxDistance);
   const [selectedPrices, setSelectedPrices] = useState(EXPERIENCE_DEFAULTS.delivery.selectedPrices);
   const [openNow, setOpenNow] = useState(EXPERIENCE_DEFAULTS.delivery.openNow);
@@ -83,7 +84,18 @@ export default function SessionScreen({ onStart, loading, coords, onLocationChan
     haptics.medium();
   };
 
-  const cantStart = locationDenied || loading;
+  const cantStart = locationDenied || loading || starting;
+
+  const handleStartClick = async () => {
+    if (cantStart) return;
+    haptics.medium();
+    setStarting(true);
+    try {
+      await onStart('group', filters);
+    } finally {
+      setStarting(false);
+    }
+  };
 
   return (
     <div style={{
@@ -311,7 +323,7 @@ export default function SessionScreen({ onStart, loading, coords, onLocationChan
 
       {/* Let's Nosh (group share) */}
       <button
-        onClick={() => { if (!cantStart) { haptics.medium(); onStart('group', filters); } }}
+        onClick={handleStartClick}
         disabled={cantStart}
         style={{
           width: '100%', padding: '22px', borderRadius: 'var(--radius-btn)',
@@ -321,13 +333,23 @@ export default function SessionScreen({ onStart, loading, coords, onLocationChan
           fontSize: '22px', fontWeight: 900, fontFamily: 'Nunito',
           letterSpacing: '0.5px',
           boxShadow: '0 6px 24px var(--accent-primary-glow)',
-          opacity: cantStart ? 0.4 : 1,
-          transition: 'transform 0.2s',
+          opacity: cantStart && !starting ? 0.4 : 1,
+          transition: 'transform 0.2s, opacity 0.2s',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px',
         }}
         onPointerDown={e => !cantStart && (e.currentTarget.style.transform = 'scale(0.97)')}
         onPointerUp={e => e.currentTarget.style.transform = 'scale(1)'}
       >
-        Let's Nosh
+        {starting && (
+          <span style={{
+            width: '22px', height: '22px', borderRadius: '50%',
+            border: '3px solid rgba(255,255,255,0.35)',
+            borderTopColor: 'white',
+            animation: 'spin 0.8s linear infinite',
+            display: 'inline-block',
+          }} />
+        )}
+        {starting ? 'Getting ready…' : "Let's Nosh"}
       </button>
 
       {loading && (
