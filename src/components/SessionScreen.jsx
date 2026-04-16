@@ -99,45 +99,39 @@ export default function SessionScreen({ onStart, loading, coords, onLocationChan
 
   return (
     <div style={{
-      minHeight: '100%',
+      height: '100%',
+      overflowY: 'auto',
       display: 'flex',
       flexDirection: 'column',
-      alignItems: 'center',
-      padding: '32px 32px 96px',
-      gap: '18px',
+      padding: '20px 20px 24px',
+      gap: '14px',
     }}>
-      <div style={{ textAlign: 'center', marginBottom: '4px' }}>
+      <div style={{ textAlign: 'center' }}>
         <img
           src={`${import.meta.env.BASE_URL}images/logo-icon.png`}
           alt="Nosh Pit"
           style={{
-            width: '120px',
+            width: '72px',
             height: 'auto',
-            marginBottom: '4px',
-            filter: 'drop-shadow(0 0 16px rgba(232, 93, 58, 0.3))',
+            filter: 'drop-shadow(0 0 12px rgba(232, 93, 58, 0.3))',
           }}
         />
         <h1 style={{
-          fontSize: '32px',
+          fontSize: '26px',
           fontWeight: 900,
           background: 'linear-gradient(135deg, var(--accent-primary), #FF8A65)',
           WebkitBackgroundClip: 'text',
           WebkitTextFillColor: 'transparent',
-          marginBottom: '4px',
+          lineHeight: 1,
         }}>Nosh Pit</h1>
-        <p style={{
-          color: 'var(--text-secondary)',
-          fontSize: '14px',
-          fontWeight: 600,
-        }}>Jump on in and pick what's for dinner</p>
       </div>
 
       {/* Experience selector */}
       <div style={{
-        width: '100%', display: 'flex', gap: '8px',
+        width: '100%', display: 'flex', gap: '6px',
         background: 'var(--bg-card)', borderRadius: 'var(--radius-btn)',
         border: '1px solid var(--border-hairline)',
-        padding: '6px',
+        padding: '5px',
       }}>
         {EXPERIENCES.map(exp => {
           const isActive = experience === exp.id;
@@ -146,7 +140,7 @@ export default function SessionScreen({ onStart, loading, coords, onLocationChan
               key={exp.id}
               onClick={() => { haptics.filterTap(); setExperience(exp.id); }}
               style={{
-                flex: 1, padding: '12px 8px', borderRadius: '10px',
+                flex: 1, padding: '10px 8px', borderRadius: '10px',
                 border: 'none',
                 background: isActive
                   ? 'linear-gradient(135deg, var(--accent-secondary), #1AAF8B)'
@@ -164,116 +158,126 @@ export default function SessionScreen({ onStart, loading, coords, onLocationChan
         })}
       </div>
 
-      {/* Location selector */}
-      <button
-        onClick={() => { haptics.filterTap(); setShowLocationInput(!showLocationInput); }}
-        style={{
-          width: '100%', display: 'flex', alignItems: 'center', gap: '8px',
-          background: 'var(--bg-card)', border: '1px solid var(--border-hairline)',
-          borderRadius: 'var(--radius-btn)',
-          padding: '12px 16px', cursor: 'pointer', color: 'var(--text-primary)',
-        }}
-      >
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={locationName ? 'var(--accent-secondary)' : 'var(--text-secondary)'} strokeWidth="2.5">
-          <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/>
-          <circle cx="12" cy="9" r="2.5"/>
-        </svg>
-        <span style={{ fontSize: '14px', fontWeight: 700, flex: 1, textAlign: 'left',
-          color: locationName ? 'var(--accent-secondary)' : 'var(--text-secondary)',
-        }}>
-          {locationName || 'Near you'}
-        </span>
-        <span style={{ fontSize: '12px', color: 'var(--text-dim)', fontWeight: 600 }}>Change</span>
-      </button>
-
-      {showLocationInput && (
-        <div style={{
-          width: '100%', background: 'var(--bg-card)', borderRadius: 'var(--radius-btn)',
-          padding: '16px', animation: 'fadeInUp 0.2s ease-out',
-          display: 'flex', flexDirection: 'column', gap: '12px',
-        }}>
-          <div style={{ display: 'flex', gap: '8px' }}>
-            <input
-              type="text"
-              value={locationQuery}
-              onChange={e => setLocationQuery(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && handleLocationSearch()}
-              placeholder="City or zip code..."
-              style={{
-                flex: 1, padding: '10px 14px', borderRadius: '10px',
-                border: '2px solid var(--bg-surface)', background: 'var(--bg-surface)',
-                color: 'var(--text-primary)', fontSize: '14px', fontWeight: 600,
-                fontFamily: 'Nunito', outline: 'none',
-              }}
-              autoFocus
-            />
-            <button
-              onClick={handleLocationSearch}
-              disabled={locationLoading || !locationQuery.trim()}
-              style={{
-                padding: '10px 16px', borderRadius: '10px',
-                border: 'none', background: 'var(--accent-primary)',
-                color: 'white', fontSize: '13px', fontWeight: 700,
-                cursor: 'pointer', fontFamily: 'Nunito',
-                opacity: locationLoading || !locationQuery.trim() ? 0.5 : 1,
-              }}
-            >
-              {locationLoading ? '...' : 'Go'}
-            </button>
-          </div>
-          {locationError && (
-            <span style={{ fontSize: '12px', color: '#F44336', fontWeight: 600 }}>{locationError}</span>
-          )}
-          {locationName && (
-            <button
-              onClick={handleUseMyLocation}
-              style={{
-                background: 'none', border: 'none', cursor: 'pointer',
-                color: 'var(--accent-secondary)', fontSize: '13px', fontWeight: 700,
-                padding: 0, textAlign: 'left',
-              }}
-            >
-              Use my location
-            </button>
-          )}
-        </div>
-      )}
-
-      {locationDenied && !showLocationInput && (
-        <div style={{
-          width: '100%', background: 'rgba(244, 67, 54, 0.1)', border: '1px solid rgba(244, 67, 54, 0.3)',
-          borderRadius: 'var(--radius-btn)', padding: '14px 16px',
-          display: 'flex', flexDirection: 'column', gap: '10px',
-        }}>
-          <p style={{ fontSize: '13px', fontWeight: 700, color: '#F44336', margin: 0 }}>
-            Location access was denied
-          </p>
-          <p style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-secondary)', margin: 0 }}>
-            Enter a city or zip code above so we can find restaurants near you.
-          </p>
-          <button
-            onClick={() => setShowLocationInput(true)}
-            style={{
-              background: 'none', border: 'none', cursor: 'pointer',
-              color: 'var(--accent-secondary)', fontSize: '13px', fontWeight: 700,
-              padding: 0, textAlign: 'left', fontFamily: 'Nunito',
-            }}
-          >
-            Enter location →
-          </button>
-        </div>
-      )}
-
-      {/* Filters */}
+      {/* Filters (location + distance + price + toggles) */}
       <div style={{
         width: '100%', background: 'var(--bg-card)', borderRadius: 'var(--radius-btn)',
         border: '1px solid var(--border-hairline)',
-        padding: '20px',
-        display: 'flex', flexDirection: 'column', gap: '18px',
+        padding: '16px',
+        display: 'flex', flexDirection: 'column', gap: '14px',
       }}>
+        {/* Location row */}
         <div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-            <label style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-secondary)' }}>Max Distance</label>
+          <button
+            onClick={() => { haptics.filterTap(); setShowLocationInput(!showLocationInput); }}
+            style={{
+              width: '100%', display: 'flex', alignItems: 'center', gap: '8px',
+              background: 'transparent', border: 'none',
+              padding: 0, cursor: 'pointer', color: 'var(--text-primary)',
+            }}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={locationName ? 'var(--accent-secondary)' : 'var(--text-secondary)'} strokeWidth="2.5" style={{ flexShrink: 0 }}>
+              <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/>
+              <circle cx="12" cy="9" r="2.5"/>
+            </svg>
+            <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-secondary)', letterSpacing: '0.5px', textTransform: 'uppercase' }}>
+              Location
+            </div>
+            <span style={{
+              fontSize: '13px', fontWeight: 700, flex: 1, textAlign: 'right',
+              color: locationName ? 'var(--accent-secondary)' : 'var(--text-secondary)',
+              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+            }}>
+              {locationName || 'Near you'}
+            </span>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--text-dim)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{
+              flexShrink: 0,
+              transform: showLocationInput ? 'rotate(180deg)' : 'rotate(0)',
+              transition: 'transform 0.2s',
+            }}>
+              <polyline points="6 9 12 15 18 9"/>
+            </svg>
+          </button>
+
+          {showLocationInput && (
+            <div style={{
+              display: 'flex', flexDirection: 'column', gap: '8px',
+              marginTop: '10px', animation: 'fadeInUp 0.2s ease-out',
+            }}>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <input
+                  type="text"
+                  value={locationQuery}
+                  onChange={e => setLocationQuery(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && handleLocationSearch()}
+                  placeholder="City or zip code..."
+                  style={{
+                    flex: 1, padding: '10px 12px', borderRadius: '10px',
+                    border: '2px solid var(--bg-surface)', background: 'var(--bg-surface)',
+                    color: 'var(--text-primary)', fontSize: '14px', fontWeight: 600,
+                    fontFamily: 'Nunito', outline: 'none', minWidth: 0,
+                  }}
+                  autoFocus
+                />
+                <button
+                  onClick={handleLocationSearch}
+                  disabled={locationLoading || !locationQuery.trim()}
+                  style={{
+                    padding: '10px 14px', borderRadius: '10px',
+                    border: 'none', background: 'var(--accent-secondary)',
+                    color: 'white', fontSize: '13px', fontWeight: 800,
+                    cursor: 'pointer', fontFamily: 'Nunito',
+                    opacity: locationLoading || !locationQuery.trim() ? 0.5 : 1,
+                  }}
+                >
+                  {locationLoading ? '...' : 'Go'}
+                </button>
+              </div>
+              {locationError && (
+                <span style={{ fontSize: '12px', color: '#F44336', fontWeight: 600 }}>{locationError}</span>
+              )}
+              {locationName && (
+                <button
+                  onClick={handleUseMyLocation}
+                  style={{
+                    background: 'none', border: 'none', cursor: 'pointer',
+                    color: 'var(--accent-secondary)', fontSize: '12px', fontWeight: 700,
+                    padding: 0, textAlign: 'left',
+                  }}
+                >
+                  Use my location
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+
+        {locationDenied && !showLocationInput && (
+          <div style={{
+            background: 'rgba(244, 67, 54, 0.1)', border: '1px solid rgba(244, 67, 54, 0.3)',
+            borderRadius: '10px', padding: '10px 12px',
+            display: 'flex', flexDirection: 'column', gap: '6px',
+          }}>
+            <p style={{ fontSize: '12px', fontWeight: 700, color: '#F44336', margin: 0 }}>
+              Location access was denied
+            </p>
+            <button
+              onClick={() => setShowLocationInput(true)}
+              style={{
+                background: 'none', border: 'none', cursor: 'pointer',
+                color: 'var(--accent-secondary)', fontSize: '12px', fontWeight: 700,
+                padding: 0, textAlign: 'left', fontFamily: 'Nunito',
+              }}
+            >
+              Enter a city or zip →
+            </button>
+          </div>
+        )}
+
+        <div style={{ height: '1px', background: 'var(--border-hairline)' }} />
+
+        <div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
+            <label style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-secondary)', letterSpacing: '0.5px', textTransform: 'uppercase' }}>Max Distance</label>
             <span style={{ fontSize: '13px', fontWeight: 800, color: 'var(--accent-secondary)' }}>{maxDistance} mi</span>
           </div>
           <input
@@ -289,10 +293,10 @@ export default function SessionScreen({ onStart, loading, coords, onLocationChan
         </div>
 
         <div>
-          <label style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-secondary)', display: 'block', marginBottom: '8px' }}>
+          <label style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-secondary)', display: 'block', marginBottom: '6px', letterSpacing: '0.5px', textTransform: 'uppercase' }}>
             Price {selectedPrices.length > 0 ? '' : '(all)'}
           </label>
-          <div style={{ display: 'flex', gap: '8px' }}>
+          <div style={{ display: 'flex', gap: '6px' }}>
             {PRICE_LABELS.map((label, i) => {
               const level = i + 1;
               const isActive = selectedPrices.includes(level);
@@ -301,7 +305,7 @@ export default function SessionScreen({ onStart, loading, coords, onLocationChan
                   key={label}
                   onClick={() => togglePrice(level)}
                   style={{
-                    flex: 1, padding: '8px', borderRadius: '10px',
+                    flex: 1, padding: '6px', borderRadius: '10px',
                     border: isActive ? '2px solid var(--accent-secondary)' : '2px solid var(--bg-surface)',
                     background: isActive ? 'var(--accent-secondary-soft)' : 'transparent',
                     color: isActive ? 'var(--accent-secondary)' : 'var(--text-dim)',
@@ -326,7 +330,7 @@ export default function SessionScreen({ onStart, loading, coords, onLocationChan
         onClick={handleStartClick}
         disabled={cantStart}
         style={{
-          width: '100%', padding: '22px', borderRadius: 'var(--radius-btn)',
+          width: '100%', padding: '20px', borderRadius: 'var(--radius-btn)',
           border: 'none',
           background: 'linear-gradient(135deg, var(--accent-primary), #FF7043)',
           color: 'white', cursor: cantStart ? 'default' : 'pointer',
@@ -336,6 +340,7 @@ export default function SessionScreen({ onStart, loading, coords, onLocationChan
           opacity: cantStart && !starting ? 0.4 : 1,
           transition: 'transform 0.2s, opacity 0.2s',
           display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px',
+          flexShrink: 0,
         }}
         onPointerDown={e => !cantStart && (e.currentTarget.style.transform = 'scale(0.97)')}
         onPointerUp={e => e.currentTarget.style.transform = 'scale(1)'}
@@ -354,8 +359,8 @@ export default function SessionScreen({ onStart, loading, coords, onLocationChan
 
       {loading && (
         <div style={{
-          display: 'flex', alignItems: 'center', gap: '8px',
-          color: 'var(--text-dim)', fontSize: '13px', fontWeight: 600,
+          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
+          color: 'var(--text-dim)', fontSize: '12px', fontWeight: 600,
         }}>
           <div style={{
             width: '8px', height: '8px', borderRadius: '50%',
@@ -367,17 +372,18 @@ export default function SessionScreen({ onStart, loading, coords, onLocationChan
       )}
 
       <div style={{
-        marginTop: 'auto', paddingTop: '16px',
-        display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px',
+        display: 'flex', flexDirection: 'row', justifyContent: 'center', alignItems: 'center',
+        gap: '10px', paddingTop: '4px',
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
           <span style={{ fontSize: '10px', color: 'var(--text-dim)', fontWeight: 600 }}>Powered by</span>
           <img
             src="https://www.gstatic.com/images/branding/googlelogo/2x/googlelogo_light_color_74x24dp.png"
             alt="Google"
-            style={{ height: '14px', opacity: 0.6 }}
+            style={{ height: '12px', opacity: 0.6 }}
           />
         </div>
+        <span style={{ fontSize: '10px', color: 'var(--text-dim)' }}>·</span>
         <a
           href={`${import.meta.env.BASE_URL}privacy.html`}
           target="_blank"
@@ -398,7 +404,7 @@ function ToggleRow({ label, value, onChange }) {
       <button
         onClick={() => { haptics.filterTap(); onChange(!value); }}
         style={{
-          width: '44px', height: '24px', borderRadius: '12px',
+          width: '40px', height: '22px', borderRadius: '12px',
           border: 'none', cursor: 'pointer', padding: '2px',
           background: value ? 'var(--accent-secondary)' : 'var(--bg-surface)',
           transition: 'background 0.2s',
@@ -406,9 +412,9 @@ function ToggleRow({ label, value, onChange }) {
         }}
       >
         <div style={{
-          width: '20px', height: '20px', borderRadius: '50%',
+          width: '18px', height: '18px', borderRadius: '50%',
           background: 'white',
-          transform: value ? 'translateX(20px)' : 'translateX(0)',
+          transform: value ? 'translateX(18px)' : 'translateX(0)',
           transition: 'transform 0.2s',
           boxShadow: '0 1px 3px rgba(0,0,0,0.3)',
         }} />
