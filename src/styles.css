@@ -56,6 +56,12 @@ body {
   display: flex;
   justify-content: center;
   align-items: center;
+  /* Respect iOS safe areas so the notch / home indicator don't overlap content.
+     viewport-fit=cover on the meta exposes env(safe-area-inset-*) values. */
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
 }
 
 #root {
