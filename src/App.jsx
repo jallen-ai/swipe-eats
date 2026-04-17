@@ -458,6 +458,10 @@ export default function App() {
   const nextCard = deck[currentIndex + 1];
   const cardsRemaining = deck.length - currentIndex;
 
+  // Prefer the realtime-synced group name so joiners see it immediately when
+  // the creator sets it after sharing the link.
+  const displayedGroupName = realtime.liveGroupName ?? session.groupName;
+
   // Session error screen
   if (session.sessionStatus === 'full') {
     return (
@@ -566,7 +570,7 @@ export default function App() {
         onBack={goHome}
         onSolo={handleGoSolo}
         isJoiner={!session.isCreator}
-        groupName={session.groupName}
+        groupName={displayedGroupName}
       />
     );
   }
@@ -682,7 +686,7 @@ export default function App() {
                 whiteSpace: 'nowrap',
               }}
             >
-              {session.groupName || 'GROUP'}
+              {displayedGroupName || 'GROUP'}
               <span style={{ fontSize: '11px', flexShrink: 0 }}>
                 {realtime.members.length > 0 ? ` ${realtime.members.length}` : ''}
               </span>
@@ -869,7 +873,7 @@ export default function App() {
           members={realtime.members}
           creatorId={session.creatorId}
           deckSize={deck.length}
-          groupName={session.groupName}
+          groupName={displayedGroupName}
           sessionId={session.sessionId}
           isCreator={session.isCreator}
           onClose={() => setShowGroupPanel(false)}

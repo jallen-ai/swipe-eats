@@ -46,7 +46,7 @@ export default function GroupMembersPanel({
     <div
       onClick={onClose}
       style={{
-        position: 'absolute', inset: 0, zIndex: 100,
+        position: 'absolute', inset: 0, zIndex: 300,
         background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)',
         display: 'flex', flexDirection: 'column',
         animation: 'fadeIn 0.2s ease-out',

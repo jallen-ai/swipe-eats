@@ -15,6 +15,9 @@ export function useRealtimeSwipes(sessionId, isActive) {
   const [tentativePick, setTentativePick] = useState(null);
   // Confirmed lock-in from sessions.locked_restaurant_id (persisted)
   const [lockedRestaurantId, setLockedRestaurantId] = useState(null);
+  // Live group name — synced from sessions UPDATEs so joiners see the name
+  // the creator sets after sharing the link.
+  const [liveGroupName, setLiveGroupName] = useState(null);
   const myRightSwipesRef = useRef(new Set());
   const myUserIdRef = useRef(null);
   const channelRef = useRef(null);
@@ -135,6 +138,10 @@ export function useRealtimeSwipes(sessionId, isActive) {
           setTentativePick(null);
         } else {
           setLockedRestaurantId(null);
+        }
+        // Sync group name so joiners see it the moment the creator sets it.
+        if (Object.prototype.hasOwnProperty.call(updated, 'group_name')) {
+          setLiveGroupName(updated.group_name || null);
         }
       })
       .on('postgres_changes', {
@@ -306,6 +313,7 @@ export function useRealtimeSwipes(sessionId, isActive) {
     sessionStarted,
     tentativePick,
     lockedRestaurantId,
+    liveGroupName,
     broadcastStart,
     broadcastTentativePick,
     broadcastClearTentative,
