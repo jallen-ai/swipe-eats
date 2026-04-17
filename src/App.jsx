@@ -3,11 +3,12 @@ import { haptics } from './utils/haptics';
 import { PreferenceEngine } from './utils/PreferenceEngine';
 import { FALLBACK_RESTAURANTS } from './data/restaurants';
 import { calcDistanceMi, formatDistance } from './utils/cuisine';
-import { supabase, authReadyPromise } from './utils/supabase';
+import { supabase, authReadyPromise, getUserId } from './utils/supabase';
 import { useSession } from './hooks/useSession';
 import { useRealtimeSwipes } from './hooks/useRealtimeSwipes';
 import { useRestaurants } from './hooks/useRestaurants';
 import { isOpenNow } from './utils/hours';
+import { saveActiveSession, getActiveSession, clearActiveSession } from './utils/activeSession';
 import SwipeCard from './components/SwipeCard';
 import ShakeUpButton from './components/ShakeUpButton';
 import MatchTray from './components/MatchTray';
@@ -83,6 +84,10 @@ export default function App() {
     }).sort((a, b) => (a.distanceMi ?? 999) - (b.distanceMi ?? 999));
   })();
 
+  // "Return to your group" candidate shown on the home screen.
+  // null = none; { sessionId, groupName, memberCount } = active candidate.
+  const [rejoinCandidate, setRejoinCandidate] = useState(null);
+
   // Handle join links — wait for auth (not geolocation), with error handling and retry
   const joinAttemptedRef = useRef(false);
   const [joinError, setJoinError] = useState(null);
@@ -94,6 +99,7 @@ export default function App() {
       await authReadyPromise;
       const result = await session.joinSession(sessionId, coords);
       if (result.success && result.deck) {
+        saveActiveSession(sessionId);
         setDeck(result.deck);
         setCardKey(k => k + 1);
 
@@ -146,6 +152,59 @@ export default function App() {
     joinAttemptedRef.current = true;
     attemptJoin(initialJoinId);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // On home-screen load, check if there's a stored active session we can offer
+  // to return to. Validates the session is still valid and the user is still
+  // a member before showing the banner — otherwise clears the stored entry.
+  useEffect(() => {
+    if (initialJoinId) return; // URL join takes precedence
+    if (screen !== 'session') return; // only relevant on home
+    const storedId = getActiveSession();
+    if (!storedId) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        await authReadyPromise;
+        const { data: sess, error } = await supabase
+          .from('sessions').select('id, group_name, expires_at').eq('id', storedId).maybeSingle();
+        if (cancelled) return;
+        if (error || !sess) { clearActiveSession(); return; }
+        if (new Date(sess.expires_at) < new Date()) { clearActiveSession(); return; }
+        const userId = await getUserId();
+        if (!userId) return;
+        const { data: member } = await supabase
+          .from('session_members').select('user_id')
+          .eq('session_id', storedId).eq('user_id', userId).maybeSingle();
+        if (cancelled) return;
+        if (!member) { clearActiveSession(); return; }
+        const { count } = await supabase
+          .from('session_members').select('*', { count: 'exact', head: true })
+          .eq('session_id', storedId);
+        if (cancelled) return;
+        setRejoinCandidate({
+          sessionId: storedId,
+          groupName: sess.group_name || null,
+          memberCount: count || 1,
+        });
+      } catch {
+        /* swallow — banner just won't show */
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [screen]);
+
+  const handleRejoinStored = useCallback(() => {
+    if (!rejoinCandidate) return;
+    setRejoinCandidate(null);
+    setScreen('joining');
+    joinAttemptedRef.current = false;
+    attemptJoin(rejoinCandidate.sessionId);
+  }, [rejoinCandidate, attemptJoin]);
+
+  const handleDismissRejoin = useCallback(() => {
+    clearActiveSession();
+    setRejoinCandidate(null);
+  }, []);
 
   // When session deck is ready (for duo mode), use it
   useEffect(() => {
@@ -274,6 +333,7 @@ export default function App() {
     if (selectedMode === 'group') {
       const id = await session.createSession(filtered);
       if (id) {
+        saveActiveSession(id);
         setScreen('groupLink');
       }
     } else {
@@ -558,7 +618,18 @@ export default function App() {
   }
 
   if (screen === 'session') {
-    return <SessionScreen onStart={handleStart} loading={restaurantsLoading} coords={coords} onLocationChange={handleLocationChange} locationError={restaurantsError} />;
+    return (
+      <SessionScreen
+        onStart={handleStart}
+        loading={restaurantsLoading}
+        coords={coords}
+        onLocationChange={handleLocationChange}
+        locationError={restaurantsError}
+        rejoinCandidate={rejoinCandidate}
+        onRejoin={handleRejoinStored}
+        onDismissRejoin={handleDismissRejoin}
+      />
+    );
   }
 
   if (screen === 'groupLink') {
