@@ -647,7 +647,16 @@ export default function App() {
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           <button
-            onClick={() => { haptics.navTransition(); goHome(); }}
+            onClick={() => {
+              haptics.navTransition();
+              // Group creator: back goes to the group homepage (keeps the session alive).
+              // Solo / group member: back exits all the way home.
+              if (mode === 'group' && session.isCreator) {
+                setScreen('groupLink');
+              } else {
+                goHome();
+              }
+            }}
             style={{
               width: '32px', height: '32px', borderRadius: '10px',
               border: 'none', background: 'var(--bg-surface)',
