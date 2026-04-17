@@ -1,12 +1,22 @@
 import { useState } from 'react';
 import { haptics } from '../utils/haptics';
 
-export default function GroupLinkScreen({ sessionId, memberCount, onContinue, onBack, onSolo, isJoiner, groupName: existingGroupName, existingNickname }) {
+export default function GroupLinkScreen({ sessionId, memberCount, onContinue, onBack, onSolo, isJoiner, groupName: existingGroupName, existingNickname, onGroupNameCommit }) {
   const [copied, setCopied] = useState(false);
   // Seed inputs from existing values so returning to this screen (creator
   // back from swiping, etc.) doesn't wipe out what the user already typed.
   const [nickname, setNickname] = useState(existingNickname || '');
   const [groupName, setGroupName] = useState(existingGroupName || '');
+
+  // Persist the group name as soon as the creator commits it (blur or share).
+  // Without this, the name isn't in the DB until "Start Swiping!" is tapped,
+  // so joiners opening the invite link in the meantime see no group name.
+  const commitGroupName = () => {
+    if (!onGroupNameCommit) return;
+    const trimmed = groupName.trim();
+    if (trimmed === (existingGroupName || '')) return;
+    onGroupNameCommit(trimmed || null);
+  };
 
   const base = import.meta.env.BASE_URL.replace(/\/$/, '');
   const link = `${window.location.origin}${base}/s/${sessionId}`;
@@ -14,6 +24,7 @@ export default function GroupLinkScreen({ sessionId, memberCount, onContinue, on
   const hasMembers = memberCount > 1;
 
   const copyLink = () => {
+    commitGroupName();
     navigator.clipboard?.writeText(link);
     setCopied(true);
     haptics.light();
@@ -22,6 +33,7 @@ export default function GroupLinkScreen({ sessionId, memberCount, onContinue, on
 
   const shareLink = async () => {
     haptics.light();
+    commitGroupName();
     if (navigator.share) {
       try {
         await navigator.share({
@@ -91,7 +103,10 @@ export default function GroupLinkScreen({ sessionId, memberCount, onContinue, on
             maxLength={40}
             style={inputStyle}
             onFocus={e => e.target.style.borderColor = 'var(--accent-secondary)'}
-            onBlur={e => e.target.style.borderColor = 'var(--border-hairline)'}
+            onBlur={e => {
+              e.target.style.borderColor = 'var(--border-hairline)';
+              commitGroupName();
+            }}
           />
         )}
 

@@ -115,6 +115,11 @@ export default function LockInScreen({
   // Preview mode: non-creator tapped a match card locally; nothing committed, no tentative.
   // Swaps the header label so "THE GROUP PICKED" isn't misleading.
   preview = false,
+  // Called when the user wants to exit the session after making their choice.
+  // For solo this is "Done"; for group creators it's "End session" and prompts confirm.
+  onEndSession = null,
+  // Whether this user created the group (controls confirm wording).
+  isGroupCreator = false,
 }) {
   // Suppress confetti in tentative or preview state — only celebrate on real confirm.
   // Derived (not initial-only) so confetti fires when transitioning tentative → locked.
@@ -122,6 +127,20 @@ export default function LockInScreen({
   const [deliveryExpanded, setDeliveryExpanded] = useState(false);
 
   const isTentative = !!tentative;
+  const canEndSession = !!onEndSession && !isTentative && !preview;
+  const endLabel = mode === 'group' ? 'End session' : 'Done';
+
+  const handleEndSession = () => {
+    if (!onEndSession) return;
+    // Confirm for group creator — ending closes the session for them and leaves
+    // members without an active curator. Solo users just exit, no confirm needed.
+    if (mode === 'group' && isGroupCreator) {
+      const ok = window.confirm('End this session? You can still rejoin from the home screen if anyone keeps it open.');
+      if (!ok) return;
+    }
+    haptics.medium();
+    onEndSession();
+  };
   const modeLabel = isTentative
     ? 'TENTATIVE PICK'
     : preview
@@ -392,6 +411,23 @@ export default function LockInScreen({
                 </svg>
               }
             />
+          )}
+
+          {canEndSession && (
+            <button
+              onClick={handleEndSession}
+              style={{
+                marginTop: '8px',
+                width: '100%', padding: '14px', borderRadius: 'var(--radius-btn)',
+                border: '1px solid var(--border-hairline)',
+                background: 'transparent',
+                color: 'var(--text-secondary)',
+                fontSize: '14px', fontWeight: 800,
+                cursor: 'pointer', fontFamily: 'Nunito',
+              }}
+            >
+              {endLabel}
+            </button>
           )}
         </div>
         )}

@@ -36,6 +36,12 @@ function mapDbRestaurant(row, userLat, userLng) {
     lat: parseFloat(row.lat),
     lng: parseFloat(row.lng),
     hours: row.hours,
+    editorialSummary: row.editorial_summary || null,
+    phone: row.phone || null,
+    delivery: row.delivery,
+    dineIn: row.dine_in,
+    takeout: row.takeout,
+    reservable: row.reservable,
   };
 }
 
@@ -268,6 +274,20 @@ export function useSession() {
       .eq('user_id', userId);
   }, [sessionId]);
 
+  // Write group name to DB and update local state so the creator sees it
+  // immediately (realtime round-trips can lag one frame).
+  const updateGroupName = useCallback(async (name) => {
+    if (!sessionId) return;
+    const { error } = await supabase.from('sessions')
+      .update({ group_name: name })
+      .eq('id', sessionId);
+    if (error) {
+      console.error('Group name update failed:', error.message);
+      return;
+    }
+    setGroupName(name || null);
+  }, [sessionId]);
+
   // Creator-only: persist the chosen restaurant. DB trigger enforces creator check.
   const lockInRestaurant = useCallback(async (restaurantId) => {
     if (!sessionId || !restaurantId) return { success: false };
@@ -303,6 +323,7 @@ export function useSession() {
     activateSession,
     startSession,
     updateNickname,
+    updateGroupName,
     lockInRestaurant,
   };
 }

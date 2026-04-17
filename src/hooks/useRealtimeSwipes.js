@@ -7,7 +7,9 @@ export function useRealtimeSwipes(sessionId, isActive) {
   const [otherRightSwipes, setOtherRightSwipes] = useState(new Map());
   const [partnerConnected, setPartnerConnected] = useState(false);
   const [memberCount, setMemberCount] = useState(1);
-  const [newPartnerMatch, setNewPartnerMatch] = useState(null);
+  // Queue of restaurant IDs newly matched via another user's swipe.
+  // An array (not a single slot) so rapid back-to-back matches don't overwrite each other.
+  const [newPartnerMatches, setNewPartnerMatches] = useState([]);
   const [sessionStarted, setSessionStarted] = useState(false);
   // Persistent members from DB: [{ user_id, nickname, joined_at, swipe_count, isOnline }]
   const [members, setMembers] = useState([]);
@@ -173,7 +175,7 @@ export function useRealtimeSwipes(sessionId, isActive) {
           });
 
           if (myRightSwipesRef.current.has(swipe.restaurant_id)) {
-            setNewPartnerMatch(swipe.restaurant_id);
+            setNewPartnerMatches(prev => prev.includes(swipe.restaurant_id) ? prev : [...prev, swipe.restaurant_id]);
           }
         }
       })
@@ -300,8 +302,8 @@ export function useRealtimeSwipes(sessionId, isActive) {
     });
   }, []);
 
-  const clearPartnerMatch = useCallback(() => {
-    setNewPartnerMatch(null);
+  const clearPartnerMatches = useCallback(() => {
+    setNewPartnerMatches([]);
   }, []);
 
   return {
@@ -309,7 +311,7 @@ export function useRealtimeSwipes(sessionId, isActive) {
     partnerConnected,
     memberCount,
     members,
-    newPartnerMatch,
+    newPartnerMatches,
     sessionStarted,
     tentativePick,
     lockedRestaurantId,
@@ -317,7 +319,7 @@ export function useRealtimeSwipes(sessionId, isActive) {
     broadcastStart,
     broadcastTentativePick,
     broadcastClearTentative,
-    clearPartnerMatch,
+    clearPartnerMatches,
     recordSwipe,
     refetchMembers: fetchMembers,
   };

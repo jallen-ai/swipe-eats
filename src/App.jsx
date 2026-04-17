@@ -235,18 +235,22 @@ export default function App() {
 
   // (No coordinated start needed — each member clicks "Start Swiping" independently)
 
-  // When partner triggers a match via realtime
+  // When another group member's swipe completes a match against one of our right-swipes,
+  // add it to the tray silently — no full-screen overlay. The tray's matchPop animation
+  // is the indicator for passive observers; the active swiper gets the overlay in handleSwipe.
   useEffect(() => {
-    if (realtime.newPartnerMatch) {
-      const restaurant = deck.find(r => r.id === realtime.newPartnerMatch);
-      if (restaurant && !matches.find(m => m.id === restaurant.id)) {
-        setMatches(prev => [...prev, restaurant]);
-        setMatchNotif(restaurant);
-        haptics.match();
-      }
-      realtime.clearPartnerMatch();
-    }
-  }, [realtime.newPartnerMatch, realtime.clearPartnerMatch, matches, deck]);
+    if (!realtime.newPartnerMatches || realtime.newPartnerMatches.length === 0) return;
+    setMatches(prev => {
+      const existing = new Set(prev.map(m => m.id));
+      const additions = realtime.newPartnerMatches
+        .map(id => deck.find(r => r.id === id))
+        .filter(r => r && !existing.has(r.id));
+      if (additions.length === 0) return prev;
+      haptics.match();
+      return [...prev, ...additions];
+    });
+    realtime.clearPartnerMatches();
+  }, [realtime.newPartnerMatches, realtime.clearPartnerMatches, deck]);
 
   // Non-creator receives a tentative pick from the creator — navigate to Lock-In
   useEffect(() => {
@@ -298,15 +302,18 @@ export default function App() {
     setCardKey(k => k + 1);
   }, [availableRestaurants]);
 
-  const goHome = () => {
+  const resetToHome = (opts = {}) => {
+    const { offerRejoin = true } = opts;
     // If we're leaving an active group session, pre-populate the rejoin banner
     // so it appears immediately on home (vs. waiting for async validation).
-    if (mode === 'group' && session.sessionId) {
+    if (offerRejoin && mode === 'group' && session.sessionId) {
       setRejoinCandidate({
         sessionId: session.sessionId,
         groupName: displayedGroupName,
         memberCount: realtime.members?.length || 1,
       });
+    } else {
+      setRejoinCandidate(null);
     }
     setScreen('session');
     setMode(null);
@@ -322,6 +329,15 @@ export default function App() {
     if (window.location.pathname !== basePath) {
       window.history.replaceState(null, '', basePath);
     }
+  };
+
+  const goHome = () => resetToHome({ offerRejoin: true });
+
+  // Explicit user-initiated "I'm done here" from the lock-in screen — clears
+  // the stored session so we don't pester them with a rejoin banner afterwards.
+  const endSession = () => {
+    clearActiveSession();
+    resetToHome({ offerRejoin: false });
   };
 
   const applyFilters = useCallback((restaurants, filters) => {
@@ -385,9 +401,7 @@ export default function App() {
     }
     // Save group name if creator provided one (update DB)
     if (groupNameInput && session.isCreator && session.sessionId) {
-      await supabase.from('sessions')
-        .update({ group_name: groupNameInput })
-        .eq('id', session.sessionId);
+      await session.updateGroupName(groupNameInput);
     }
     if (session.deck) {
       setDeck(session.deck);
@@ -671,6 +685,7 @@ export default function App() {
         isJoiner={!session.isCreator}
         groupName={displayedGroupName}
         existingNickname={myMember?.nickname || ''}
+        onGroupNameCommit={session.updateGroupName}
       />
     );
   }
@@ -731,6 +746,8 @@ export default function App() {
         tentative={tentativeProps}
         banner={banner}
         preview={preview}
+        onEndSession={endSession}
+        isGroupCreator={mode === 'group' && session.isCreator}
       />
     );
   }
@@ -799,9 +816,6 @@ export default function App() {
               }}
             >
               {displayedGroupName || 'GROUP'}
-              <span style={{ fontSize: '11px', flexShrink: 0 }}>
-                {realtime.members.length > 0 ? ` ${realtime.members.length}` : ''}
-              </span>
             </button>
           )}
         </div>
