@@ -354,12 +354,12 @@ export default function SessionScreen({
             <span style={{ fontSize: '13px', fontWeight: 800, color: 'var(--accent-secondary)' }}>{maxDistance} mi</span>
           </div>
           <input
-            type="range" min="1" max="20" value={maxDistance}
+            type="range" min="0.5" max="20" step="0.5" value={maxDistance}
             onChange={e => { setMaxDistance(Number(e.target.value)); haptics.filterTap(); }}
             style={{
               width: '100%', height: '4px', borderRadius: '2px',
               appearance: 'none', WebkitAppearance: 'none',
-              background: `linear-gradient(to right, var(--accent-secondary) ${(maxDistance - 1) / 19 * 100}%, var(--bg-surface) ${(maxDistance - 1) / 19 * 100}%)`,
+              background: `linear-gradient(to right, var(--accent-secondary) ${(maxDistance - 0.5) / 19.5 * 100}%, var(--bg-surface) ${(maxDistance - 0.5) / 19.5 * 100}%)`,
               outline: 'none', cursor: 'pointer',
             }}
           />
