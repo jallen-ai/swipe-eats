@@ -168,14 +168,27 @@ export default function App() {
         const { data: sess, error } = await supabase
           .from('sessions').select('id, group_name, expires_at').eq('id', storedId).maybeSingle();
         if (cancelled) return;
-        if (error || !sess) { clearActiveSession(); return; }
+        if (error) {
+          console.warn('Rejoin check: sessions lookup error', error.message);
+          clearActiveSession();
+          return;
+        }
+        if (!sess) {
+          console.warn('Rejoin check: session not found (may have expired/been deleted)', storedId);
+          clearActiveSession();
+          return;
+        }
         if (new Date(sess.expires_at) < new Date()) { clearActiveSession(); return; }
         const userId = await getUserId();
         if (!userId) return;
-        const { data: member } = await supabase
+        const { data: member, error: memberErr } = await supabase
           .from('session_members').select('user_id')
           .eq('session_id', storedId).eq('user_id', userId).maybeSingle();
         if (cancelled) return;
+        if (memberErr) {
+          console.warn('Rejoin check: member lookup error', memberErr.message);
+          return;
+        }
         if (!member) { clearActiveSession(); return; }
         const { count } = await supabase
           .from('session_members').select('*', { count: 'exact', head: true })
@@ -186,8 +199,8 @@ export default function App() {
           groupName: sess.group_name || null,
           memberCount: count || 1,
         });
-      } catch {
-        /* swallow — banner just won't show */
+      } catch (e) {
+        console.warn('Rejoin check: unexpected error', e);
       }
     })();
     return () => { cancelled = true; };
@@ -281,6 +294,15 @@ export default function App() {
   }, [availableRestaurants]);
 
   const goHome = () => {
+    // If we're leaving an active group session, pre-populate the rejoin banner
+    // so it appears immediately on home (vs. waiting for async validation).
+    if (mode === 'group' && session.sessionId) {
+      setRejoinCandidate({
+        sessionId: session.sessionId,
+        groupName: displayedGroupName,
+        memberCount: realtime.members?.length || 1,
+      });
+    }
     setScreen('session');
     setMode(null);
     setMatches([]);
