@@ -213,6 +213,7 @@ export default function App() {
   const handleRejoinStored = useCallback(() => {
     if (!rejoinCandidate) return;
     setRejoinCandidate(null);
+    setMode('group'); // goHome cleared this; restore before rejoining so group UI + realtime activate
     setScreen('joining');
     joinAttemptedRef.current = false;
     attemptJoin(rejoinCandidate.sessionId);
