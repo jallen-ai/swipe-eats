@@ -35,6 +35,7 @@ const initialJoinId = getJoinSessionId();
 export default function App() {
   const [screen, setScreen] = useState(initialJoinId ? 'joining' : 'session');
   const [mode, setMode] = useState(initialJoinId ? 'group' : null);
+  const [myUserId, setMyUserId] = useState(null);
   const engineRef = useRef(new PreferenceEngine());
   const [deck, setDeck] = useState([]);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -69,6 +70,9 @@ export default function App() {
       geolocateCoordsRef.current = coords;
     }
   }, [coords]);
+
+  // Cache our own user id so we can pick our nickname out of the members list.
+  useEffect(() => { getUserId().then(setMyUserId); }, []);
 
   // Use live restaurants or fallback, with dynamic distances
   const availableRestaurants = (() => {
@@ -655,6 +659,7 @@ export default function App() {
   }
 
   if (screen === 'groupLink') {
+    const myMember = realtime.members?.find(m => m.user_id === myUserId);
     return (
       <GroupLinkScreen
         sessionId={session.sessionId}
@@ -664,6 +669,7 @@ export default function App() {
         onSolo={handleGoSolo}
         isJoiner={!session.isCreator}
         groupName={displayedGroupName}
+        existingNickname={myMember?.nickname || ''}
       />
     );
   }

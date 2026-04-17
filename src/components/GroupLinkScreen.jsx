@@ -1,10 +1,12 @@
 import { useState } from 'react';
 import { haptics } from '../utils/haptics';
 
-export default function GroupLinkScreen({ sessionId, memberCount, onContinue, onBack, onSolo, isJoiner, groupName: existingGroupName }) {
+export default function GroupLinkScreen({ sessionId, memberCount, onContinue, onBack, onSolo, isJoiner, groupName: existingGroupName, existingNickname }) {
   const [copied, setCopied] = useState(false);
-  const [nickname, setNickname] = useState('');
-  const [groupName, setGroupName] = useState('');
+  // Seed inputs from existing values so returning to this screen (creator
+  // back from swiping, etc.) doesn't wipe out what the user already typed.
+  const [nickname, setNickname] = useState(existingNickname || '');
+  const [groupName, setGroupName] = useState(existingGroupName || '');
 
   const base = import.meta.env.BASE_URL.replace(/\/$/, '');
   const link = `${window.location.origin}${base}/s/${sessionId}`;
