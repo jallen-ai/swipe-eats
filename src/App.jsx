@@ -751,7 +751,10 @@ export default function App() {
               haptics.navTransition();
               // Group creator: back goes to the group homepage (keeps the session alive).
               // Solo / group member: back exits all the way home.
-              if (mode === 'group' && session.isCreator) {
+              // Keying on session.isCreator (not mode) — `mode` can drift after rejoin,
+              // but isCreator is always true iff this user created the active session.
+              if (session.isCreator && session.sessionId) {
+                setMode('group'); // self-heal in case it was cleared during goHome
                 setScreen('groupLink');
               } else {
                 goHome();
