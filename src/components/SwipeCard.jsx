@@ -147,18 +147,28 @@ export default function SwipeCard({ restaurant, onSwipe, isTop, style }) {
             draggable={false}
           />
         )}
-        {/* Photo attribution */}
-        {restaurant.photoAttribution && (
-          <span style={{
-            position: 'absolute', top: '10px', right: '10px', zIndex: 3,
-            fontSize: '10px', fontWeight: 600,
-            color: 'rgba(255,255,255,0.6)',
-            background: 'rgba(0,0,0,0.35)',
+        {/* Closed badge — prominent, top-left; only renders when we know the restaurant is closed */}
+        {hoursStatus.isOpen === false && (
+          <div style={{
+            position: 'absolute', top: '12px', left: '12px', zIndex: 3,
+            display: 'flex', flexDirection: 'column', gap: '2px',
+            background: 'rgba(244, 67, 54, 0.95)',
             backdropFilter: 'blur(4px)',
-            padding: '2px 8px', borderRadius: '8px',
+            padding: '6px 12px', borderRadius: '10px',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
           }}>
-            {restaurant.photoAttribution}
-          </span>
+            <span style={{
+              fontSize: '12px', fontWeight: 900, color: 'white',
+              letterSpacing: '0.5px', lineHeight: 1,
+            }}>CLOSED</span>
+            {hoursStatus.statusText && (
+              <span style={{
+                fontSize: '10px', fontWeight: 700,
+                color: 'rgba(255,255,255,0.9)',
+                lineHeight: 1.1,
+              }}>{hoursStatus.statusText}</span>
+            )}
+          </div>
         )}
 
         {/* Gradient overlay for text readability */}
@@ -257,20 +267,6 @@ export default function SwipeCard({ restaurant, onSwipe, isTop, style }) {
             fontWeight: 700,
             color: 'var(--accent-secondary)',
           }}>{restaurant.cuisine}</span>
-          {hoursStatus.isOpen !== null && (
-            <span style={{
-              padding: '5px 12px',
-              borderRadius: '20px',
-              fontSize: '12px',
-              fontWeight: 700,
-              background: hoursStatus.isOpen
-                ? 'rgba(76, 175, 80, 0.15)'
-                : 'rgba(244, 67, 54, 0.15)',
-              color: hoursStatus.isOpen ? '#4CAF50' : '#F44336',
-            }}>
-              {hoursStatus.isOpen ? 'Open' : 'Closed'}
-            </span>
-          )}
           {restaurant.rating && (
             <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="var(--accent-primary)" stroke="none">
@@ -309,10 +305,10 @@ export default function SwipeCard({ restaurant, onSwipe, isTop, style }) {
             📍 {restaurant.address}
           </p>
         )}
-        {hoursStatus.statusText && (
+        {hoursStatus.isOpen !== false && hoursStatus.statusText && (
           <p style={{
             fontSize: '12px',
-            color: hoursStatus.isOpen ? '#4CAF50' : '#F44336',
+            color: '#4CAF50',
             fontWeight: 600, margin: 0,
           }}>
             {hoursStatus.statusText}

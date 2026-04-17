@@ -44,7 +44,7 @@ export default function App() {
   const [cardKey, setCardKey] = useState(0);
   const [choosingForMe, setChoosingForMe] = useState(false);
   const [showSwipeFilters, setShowSwipeFilters] = useState(false);
-  const [activeFilters, setActiveFilters] = useState({ maxDistance: 5, selectedPrices: [], openNow: true, delivery: false, reservations: false });
+  const [activeFilters, setActiveFilters] = useState({ maxDistance: 5, selectedPrices: [], openNow: false, delivery: false, reservations: false });
   const [showMatchPrompt, setShowMatchPrompt] = useState(false);
   const [locationName, setLocationName] = useState(null);
   const [showGroupPanel, setShowGroupPanel] = useState(false);
@@ -605,7 +605,11 @@ export default function App() {
             )}
             {mode !== 'group' && (
               <button
-                onClick={() => { initDeck(); }}
+                onClick={() => {
+                  const source = availableRestaurants || FALLBACK_RESTAURANTS;
+                  const filtered = applyFilters(source, activeFilters);
+                  initDeck(filtered);
+                }}
                 style={{
                   marginTop: '12px', padding: '14px 32px',
                   borderRadius: 'var(--radius-btn)',
