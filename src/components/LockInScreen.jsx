@@ -433,42 +433,47 @@ export default function LockInScreen({
             />
           )}
 
-          {lifecycle && (
-            <div style={{
-              marginTop: '10px', display: 'flex', flexDirection: 'column', gap: '8px',
-              borderTop: '1px solid var(--border-hairline)', paddingTop: '14px',
-            }}>
-              {lifecycle.role === 'creator' && (
-                <>
-                  <button
-                    onClick={handleReopen}
-                    style={secondaryButtonStyle}
-                  >
-                    🔄 Reopen swiping
-                  </button>
-                  <button
-                    onClick={handleClose}
-                    style={{ ...secondaryButtonStyle, color: '#F44336', borderColor: 'rgba(244,67,54,0.4)' }}
-                  >
-                    Close session
-                  </button>
-                </>
-              )}
-              {lifecycle.role === 'member' && (
-                <button onClick={handleLeave} style={secondaryButtonStyle}>
-                  Leave session
-                </button>
-              )}
-              {lifecycle.role === 'solo' && (
-                <button onClick={handleDone} style={secondaryButtonStyle}>
-                  Done
-                </button>
-              )}
-            </div>
-          )}
         </div>
         )}
       </div>
+
+      {/* Lifecycle footer — pinned outside the scrollable area so it's always
+          visible on mobile (was getting cut off below the fold). */}
+      {lifecycle && (
+        <div style={{
+          flexShrink: 0,
+          padding: '12px 20px 20px',
+          paddingBottom: 'max(20px, env(safe-area-inset-bottom))',
+          background: 'var(--bg-primary)',
+          borderTop: '1px solid var(--border-hairline)',
+          display: 'flex', flexDirection: 'column', gap: '8px',
+          zIndex: 10,
+        }}>
+          {lifecycle.role === 'creator' && (
+            <>
+              <button onClick={handleReopen} style={secondaryButtonStyle}>
+                🔄 Reopen swiping
+              </button>
+              <button
+                onClick={handleClose}
+                style={{ ...secondaryButtonStyle, color: '#F44336', borderColor: 'rgba(244,67,54,0.4)' }}
+              >
+                Close session
+              </button>
+            </>
+          )}
+          {lifecycle.role === 'member' && (
+            <button onClick={handleLeave} style={secondaryButtonStyle}>
+              Leave session
+            </button>
+          )}
+          {lifecycle.role === 'solo' && (
+            <button onClick={handleDone} style={secondaryButtonStyle}>
+              Done
+            </button>
+          )}
+        </div>
+      )}
     </div>
   );
 }
