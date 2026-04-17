@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { haptics } from '../utils/haptics';
 
-export default function ReviewMatchesScreen({ matches, mode, onSelect, onChooseForMe, onBack, isCreator = true }) {
+export default function ReviewMatchesScreen({ matches, mode, onSelect, onChooseForMe, onBack, isCreator = true, showOrderInfo = false }) {
   const [pressedId, setPressedId] = useState(null);
+  const [showOrderExplain, setShowOrderExplain] = useState(false);
 
   return (
     <div style={{
@@ -27,7 +28,7 @@ export default function ReviewMatchesScreen({ matches, mode, onSelect, onChooseF
             <path d="M19 12H5M12 19l-7-7 7-7"/>
           </svg>
         </button>
-        <div>
+        <div style={{ flex: 1, minWidth: 0 }}>
           <h2 style={{ fontSize: '20px', fontWeight: 900, margin: 0 }}>
             Your Matches
           </h2>
@@ -36,7 +37,64 @@ export default function ReviewMatchesScreen({ matches, mode, onSelect, onChooseF
             {mode === 'group' ? ' by the group' : ''}
           </p>
         </div>
+        {showOrderInfo && (
+          <button
+            onClick={() => { haptics.light(); setShowOrderExplain(true); }}
+            aria-label="How matches are ordered"
+            style={{
+              width: '28px', height: '28px', borderRadius: '50%',
+              border: '1.5px solid var(--text-dim)',
+              background: 'transparent',
+              color: 'var(--text-dim)',
+              fontSize: '13px', fontWeight: 900,
+              cursor: 'pointer', fontFamily: 'Nunito',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              padding: 0, flexShrink: 0,
+            }}
+          >i</button>
+        )}
       </div>
+
+      {showOrderExplain && (
+        <div
+          onClick={() => setShowOrderExplain(false)}
+          style={{
+            position: 'absolute', inset: 0, zIndex: 100,
+            background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            padding: '32px',
+            animation: 'fadeIn 0.2s ease-out',
+          }}
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{
+              background: 'var(--bg-elevated)',
+              borderRadius: '18px',
+              border: '1px solid var(--border-hairline)',
+              padding: '22px 24px',
+              width: '100%', maxWidth: '320px',
+            }}
+          >
+            <h3 style={{ fontSize: '16px', fontWeight: 900, margin: 0, marginBottom: '10px' }}>
+              How matches are ordered
+            </h3>
+            <p style={{ fontSize: '13px', color: 'var(--text-secondary)', fontWeight: 600, lineHeight: 1.5, margin: 0, marginBottom: '16px' }}>
+              Restaurants liked by more group members show up first.
+              A green "Everyone liked this!" means unanimous.
+            </p>
+            <button
+              onClick={() => setShowOrderExplain(false)}
+              style={{
+                padding: '10px 18px', borderRadius: '12px',
+                border: 'none', background: 'var(--accent-primary)',
+                color: 'white', fontSize: '14px', fontWeight: 800,
+                cursor: 'pointer', fontFamily: 'Nunito',
+              }}
+            >Got it</button>
+          </div>
+        </div>
+      )}
 
       {/* Match list */}
       <div style={{

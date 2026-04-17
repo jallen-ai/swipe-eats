@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useEffect } from 'react';
+import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import { haptics } from './utils/haptics';
 import { PreferenceEngine } from './utils/PreferenceEngine';
 import { FALLBACK_RESTAURANTS } from './data/restaurants';
@@ -432,6 +432,28 @@ export default function App() {
     setScreen('review');
   };
 
+  // Decorate + sort matches for the Review screen.
+  // Vote count = other-member right-swipes + 1 (for the current user — matches only
+  // appear in this list if they're a mutual right-swipe with this user). Higher vote
+  // count floats up so unanimous picks show first in 3+ groups.
+  const reviewMatches = useMemo(() => {
+    if (mode !== 'group') return matches;
+    const total = realtime.members?.length || 1;
+    return matches.map(r => {
+      const others = realtime.otherRightSwipes?.get(r.id);
+      const voteCount = (others ? others.size : 0) + 1;
+      return { ...r, voteCount, totalMembers: total };
+    }).sort((a, b) => (b.voteCount || 0) - (a.voteCount || 0));
+  }, [matches, mode, realtime.members, realtime.otherRightSwipes]);
+
+  // Show the (i) icon only when the sort order is meaningful (3+ members, some non-unanimous)
+  const showMatchOrderInfo = useMemo(() => {
+    if (mode !== 'group') return false;
+    const total = realtime.members?.length || 1;
+    if (total < 3) return false;
+    return reviewMatches.some(r => (r.voteCount ?? 0) < total);
+  }, [mode, realtime.members, reviewMatches]);
+
   const currentCard = deck[currentIndex];
   const nextCard = deck[currentIndex + 1];
   const cardsRemaining = deck.length - currentIndex;
@@ -553,17 +575,18 @@ export default function App() {
     return (
       <>
         <ReviewMatchesScreen
-          matches={matches}
+          matches={reviewMatches}
           mode={mode}
           onSelect={handleLockIn}
           onChooseForMe={handleChooseForMe}
           onBack={() => setScreen('swiping')}
           isCreator={mode !== 'group' || session.isCreator}
+          showOrderInfo={showMatchOrderInfo}
         />
         {choosingForMe && (
           <ChooseForMeAnimation
             key={cfmReplayKey}
-            matches={matches}
+            matches={reviewMatches}
             onChosen={handleChosenForMe}
           />
         )}
