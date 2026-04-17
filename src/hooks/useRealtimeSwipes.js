@@ -30,12 +30,16 @@ export function useRealtimeSwipes(sessionId, isActive) {
     if (!sessionId) return;
 
     // Fetch members
-    const { data: memberRows } = await supabase
+    const { data: memberRows, error: memberErr } = await supabase
       .from('session_members')
       .select('user_id, nickname, joined_at')
       .eq('session_id', sessionId)
       .order('joined_at', { ascending: true });
 
+    if (memberErr) {
+      console.error('session_members fetch failed:', memberErr.message);
+      return;
+    }
     if (!memberRows) return;
 
     // Fetch swipe counts per user
@@ -307,5 +311,6 @@ export function useRealtimeSwipes(sessionId, isActive) {
     broadcastClearTentative,
     clearPartnerMatch,
     recordSwipe,
+    refetchMembers: fetchMembers,
   };
 }

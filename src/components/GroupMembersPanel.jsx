@@ -1,6 +1,47 @@
+import { useState } from 'react';
 import { haptics } from '../utils/haptics';
 
-export default function GroupMembersPanel({ members, creatorId, deckSize, groupName, onClose }) {
+export default function GroupMembersPanel({
+  members,
+  creatorId,
+  deckSize,
+  groupName,
+  sessionId,
+  isCreator,
+  onClose,
+}) {
+  const [copied, setCopied] = useState(false);
+
+  const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+  const link = sessionId ? `${window.location.origin}${base}/s/${sessionId}` : null;
+  const displayLink = sessionId ? `${window.location.host}${base}/s/${sessionId}` : null;
+
+  const copyLink = () => {
+    if (!link) return;
+    navigator.clipboard?.writeText(link);
+    setCopied(true);
+    haptics.light();
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const shareLink = async () => {
+    if (!link) return;
+    haptics.light();
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: 'Nosh Pit',
+          text: 'Join my Nosh Pit group and help pick where to eat!',
+          url: link,
+        });
+      } catch (e) {
+        if (e.name !== 'AbortError') copyLink();
+      }
+    } else {
+      copyLink();
+    }
+  };
+
   return (
     <div
       onClick={onClose}
@@ -18,7 +59,7 @@ export default function GroupMembersPanel({ members, creatorId, deckSize, groupN
           background: 'var(--bg-card)',
           borderRadius: '16px',
           padding: '20px',
-          maxHeight: '60vh',
+          maxHeight: '75vh',
           overflowY: 'auto',
           animation: 'slideDown 0.25s ease-out',
         }}
@@ -46,9 +87,81 @@ export default function GroupMembersPanel({ members, creatorId, deckSize, groupN
           </button>
         </div>
 
-        {members.length === 0 ? (
+        {isCreator && link && (
+          <div style={{
+            display: 'flex', flexDirection: 'column', gap: '8px',
+            marginBottom: '16px',
+            paddingBottom: '16px',
+            borderBottom: '1px solid var(--border-hairline)',
+          }}>
+            <div style={{
+              fontSize: '11px', fontWeight: 800, color: 'var(--text-dim)',
+              letterSpacing: '1.2px', textTransform: 'uppercase',
+            }}>
+              Invite link
+            </div>
+            <button
+              onClick={copyLink}
+              style={{
+                width: '100%', padding: '12px 14px',
+                borderRadius: '12px',
+                border: '1px dashed var(--border-hairline)',
+                background: 'var(--bg-surface)',
+                color: copied ? 'var(--accent-secondary)' : 'var(--text-primary)',
+                cursor: 'pointer',
+                display: 'flex', alignItems: 'center', gap: '10px',
+                fontFamily: 'Nunito',
+                transition: 'color 0.2s, border-color 0.2s',
+                borderColor: copied ? 'var(--accent-secondary)' : 'var(--border-hairline)',
+              }}
+            >
+              {copied ? (
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+                  <polyline points="20 6 9 17 4 12"/>
+                </svg>
+              ) : (
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-dim)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+                  <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                  <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/>
+                </svg>
+              )}
+              <span style={{
+                fontSize: '13px', fontWeight: 700,
+                flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
+                textAlign: 'left',
+              }}>
+                {copied ? 'Copied to clipboard' : displayLink}
+              </span>
+            </button>
+            <button
+              onClick={shareLink}
+              style={{
+                width: '100%', padding: '12px',
+                borderRadius: '12px',
+                border: 'none',
+                background: 'linear-gradient(135deg, var(--accent-secondary), #1AAF8B)',
+                color: 'white',
+                cursor: 'pointer',
+                fontSize: '14px', fontWeight: 800,
+                fontFamily: 'Nunito',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
+                boxShadow: '0 2px 10px var(--accent-secondary-glow)',
+              }}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8"/>
+                <polyline points="16 6 12 2 8 6"/>
+                <line x1="12" y1="2" x2="12" y2="15"/>
+              </svg>
+              Share invite
+            </button>
+          </div>
+        )}
+
+        {(!members || members.length === 0) ? (
           <p style={{ color: 'var(--text-secondary)', fontSize: '14px', fontWeight: 600, textAlign: 'center', padding: '12px 0' }}>
-            No members yet
+            Loading members…
           </p>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>

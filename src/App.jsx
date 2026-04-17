@@ -663,7 +663,12 @@ export default function App() {
           }}>Nosh Pit</span>
           {mode === 'group' && (
             <button
-              onClick={() => { haptics.light(); setShowGroupPanel(true); }}
+              onClick={() => {
+                haptics.light();
+                setShowGroupPanel(true);
+                // Refresh from DB in case state drifted (timing, RLS hiccup, etc.)
+                realtime.refetchMembers?.();
+              }}
               style={{
                 marginLeft: '8px', fontSize: '11px', fontWeight: 700,
                 background: 'var(--accent-primary)', color: 'white',
@@ -858,13 +863,15 @@ export default function App() {
         />
       )}
 
-      {/* Group members panel */}
+      {/* Group members panel — also serves as the re-share hub for the creator */}
       {showGroupPanel && mode === 'group' && (
         <GroupMembersPanel
           members={realtime.members}
           creatorId={session.creatorId}
           deckSize={deck.length}
           groupName={session.groupName}
+          sessionId={session.sessionId}
+          isCreator={session.isCreator}
           onClose={() => setShowGroupPanel(false)}
         />
       )}
