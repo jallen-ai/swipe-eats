@@ -51,6 +51,15 @@ function getDeliveryUrl(app, restaurant) {
   }
 }
 
+const secondaryButtonStyle = {
+  width: '100%', padding: '14px', borderRadius: 'var(--radius-btn)',
+  border: '1px solid var(--border-hairline)',
+  background: 'transparent',
+  color: 'var(--text-secondary)',
+  fontSize: '14px', fontWeight: 800,
+  cursor: 'pointer', fontFamily: 'Nunito',
+};
+
 function ActionButton({ href, onClick, icon, label, sublabel, variant = 'default', disabled = false }) {
   const isGradient = variant === 'primary';
   const style = {
@@ -112,40 +121,51 @@ export default function LockInScreen({
   tentative = null,
   // Optional banner shown at the top — used for late-joiner "group picked this" case.
   banner = null,
-  // Preview mode: non-creator tapped a match card locally; nothing committed, no tentative.
-  // Swaps the header label so "THE GROUP PICKED" isn't misleading.
-  preview = false,
-  // Called when the user wants to exit the session after making their choice.
-  // For solo this is "Done"; for group creators it's "End session" and prompts confirm.
-  onEndSession = null,
-  // Whether this user created the group (controls confirm wording).
-  isGroupCreator = false,
+  // Lifecycle controls, shown only in the committed (non-tentative) state.
+  //   role:     'solo' | 'creator' | 'member'
+  //   onReopen: creator-only — unlock and send everyone back to review
+  //   onClose:  creator-only — end the session for everyone
+  //   onLeave:  member-only  — exit locally (session keeps running for others)
+  //   onDone:   solo-only    — back to home
+  lifecycle = null,
 }) {
-  // Suppress confetti in tentative or preview state — only celebrate on real confirm.
-  // Derived (not initial-only) so confetti fires when transitioning tentative → locked.
-  const showConfetti = !tentative && !preview;
+  // Suppress confetti in tentative state — only celebrate on real confirm.
+  const showConfetti = !tentative;
   const [deliveryExpanded, setDeliveryExpanded] = useState(false);
 
   const isTentative = !!tentative;
-  const canEndSession = !!onEndSession && !isTentative && !preview;
-  const endLabel = mode === 'group' ? 'End session' : 'Done';
 
-  const handleEndSession = () => {
-    if (!onEndSession) return;
-    // Confirm for group creator — ending closes the session for them and leaves
-    // members without an active curator. Solo users just exit, no confirm needed.
-    if (mode === 'group' && isGroupCreator) {
-      const ok = window.confirm('End this session? You can still rejoin from the home screen if anyone keeps it open.');
-      if (!ok) return;
-    }
+  const handleReopen = () => {
+    if (!lifecycle?.onReopen) return;
+    const ok = window.confirm('Reopen swiping? Everyone will return to the matches list with their swipes intact.');
+    if (!ok) return;
     haptics.medium();
-    onEndSession();
+    lifecycle.onReopen();
   };
+
+  const handleClose = () => {
+    if (!lifecycle?.onClose) return;
+    const ok = window.confirm('Close this session for everyone? This cannot be undone.');
+    if (!ok) return;
+    haptics.medium();
+    lifecycle.onClose();
+  };
+
+  const handleLeave = () => {
+    if (!lifecycle?.onLeave) return;
+    haptics.medium();
+    lifecycle.onLeave();
+  };
+
+  const handleDone = () => {
+    if (!lifecycle?.onDone) return;
+    haptics.medium();
+    lifecycle.onDone();
+  };
+
   const modeLabel = isTentative
     ? 'TENTATIVE PICK'
-    : preview
-      ? 'PREVIEW'
-      : mode === 'group' ? 'THE GROUP PICKED' : mode === 'duo' ? 'YOU BOTH PICKED' : "TONIGHT'S PICK";
+    : mode === 'group' ? 'THE GROUP PICKED' : mode === 'duo' ? 'YOU BOTH PICKED' : "TONIGHT'S PICK";
 
   return (
     <div style={{
@@ -413,21 +433,38 @@ export default function LockInScreen({
             />
           )}
 
-          {canEndSession && (
-            <button
-              onClick={handleEndSession}
-              style={{
-                marginTop: '8px',
-                width: '100%', padding: '14px', borderRadius: 'var(--radius-btn)',
-                border: '1px solid var(--border-hairline)',
-                background: 'transparent',
-                color: 'var(--text-secondary)',
-                fontSize: '14px', fontWeight: 800,
-                cursor: 'pointer', fontFamily: 'Nunito',
-              }}
-            >
-              {endLabel}
-            </button>
+          {lifecycle && (
+            <div style={{
+              marginTop: '10px', display: 'flex', flexDirection: 'column', gap: '8px',
+              borderTop: '1px solid var(--border-hairline)', paddingTop: '14px',
+            }}>
+              {lifecycle.role === 'creator' && (
+                <>
+                  <button
+                    onClick={handleReopen}
+                    style={secondaryButtonStyle}
+                  >
+                    🔄 Reopen swiping
+                  </button>
+                  <button
+                    onClick={handleClose}
+                    style={{ ...secondaryButtonStyle, color: '#F44336', borderColor: 'rgba(244,67,54,0.4)' }}
+                  >
+                    Close session
+                  </button>
+                </>
+              )}
+              {lifecycle.role === 'member' && (
+                <button onClick={handleLeave} style={secondaryButtonStyle}>
+                  Leave session
+                </button>
+              )}
+              {lifecycle.role === 'solo' && (
+                <button onClick={handleDone} style={secondaryButtonStyle}>
+                  Done
+                </button>
+              )}
+            </div>
           )}
         </div>
         )}

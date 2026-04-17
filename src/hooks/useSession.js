@@ -130,6 +130,13 @@ export function useSession() {
         return { success: false, error: err };
       }
 
+      if (sess.status === 'closed') {
+        const err = 'This session has ended';
+        setSessionStatus('closed');
+        setSessionError(err);
+        return { success: false, error: err };
+      }
+
       // Check if already a member
       const { data: existingMember } = await supabase
         .from('session_members')
@@ -308,6 +315,43 @@ export function useSession() {
     return { success: true };
   }, [sessionId]);
 
+  // Creator-only: clear the lock so everyone returns to review/swiping.
+  // Members' existing swipes are preserved — they don't have to re-vote.
+  const reopenSession = useCallback(async () => {
+    if (!sessionId) return { success: false };
+    const { error } = await supabase
+      .from('sessions')
+      .update({
+        locked_restaurant_id: null,
+        locked_at: null,
+        status: 'active',
+      })
+      .eq('id', sessionId);
+    if (error) {
+      console.error('Reopen failed:', error.message);
+      return { success: false, error: error.message };
+    }
+    setLockedRestaurantId(null);
+    setSessionStatus('active');
+    return { success: true };
+  }, [sessionId]);
+
+  // Creator-only: terminally close the session after a lock-in. Members see
+  // the locked screen dismissed and land back on the home screen.
+  const closeSession = useCallback(async () => {
+    if (!sessionId) return { success: false };
+    const { error } = await supabase
+      .from('sessions')
+      .update({ status: 'closed' })
+      .eq('id', sessionId);
+    if (error) {
+      console.error('Close failed:', error.message);
+      return { success: false, error: error.message };
+    }
+    setSessionStatus('closed');
+    return { success: true };
+  }, [sessionId]);
+
   return {
     sessionId,
     sessionStatus,
@@ -325,5 +369,7 @@ export function useSession() {
     updateNickname,
     updateGroupName,
     lockInRestaurant,
+    reopenSession,
+    closeSession,
   };
 }

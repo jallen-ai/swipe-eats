@@ -2,6 +2,8 @@ import { haptics } from '../utils/haptics';
 
 export default function MatchTray({ matches, onSelect, onRemove, onViewAll }) {
   if (matches.length === 0) return null;
+  // When onSelect is null the thumbnails are display-only (group members).
+  const interactable = typeof onSelect === 'function';
 
   return (
     <div style={{
@@ -56,14 +58,15 @@ export default function MatchTray({ matches, onSelect, onRemove, onViewAll }) {
           }}
         >
           <button
-            onClick={() => onSelect(m)}
+            onClick={interactable ? () => onSelect(m) : undefined}
+            disabled={!interactable}
             style={{
               width: '64px',
               height: '64px',
               borderRadius: '16px',
               border: '2px solid var(--accent-primary)',
               overflow: 'hidden',
-              cursor: 'pointer',
+              cursor: interactable ? 'pointer' : 'default',
               padding: 0,
               background: 'var(--bg-card)',
               boxShadow: '0 0 12px var(--accent-primary-glow)',

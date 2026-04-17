@@ -20,6 +20,9 @@ export function useRealtimeSwipes(sessionId, isActive) {
   // Live group name — synced from sessions UPDATEs so joiners see the name
   // the creator sets after sharing the link.
   const [liveGroupName, setLiveGroupName] = useState(null);
+  // Live session status — synced from sessions UPDATEs so members react to
+  // reopen (locked → active) and close (anything → closed) in realtime.
+  const [liveStatus, setLiveStatus] = useState(null);
   const myRightSwipesRef = useRef(new Set());
   const myUserIdRef = useRef(null);
   const channelRef = useRef(null);
@@ -144,6 +147,9 @@ export function useRealtimeSwipes(sessionId, isActive) {
         // Sync group name so joiners see it the moment the creator sets it.
         if (Object.prototype.hasOwnProperty.call(updated, 'group_name')) {
           setLiveGroupName(updated.group_name || null);
+        }
+        if (Object.prototype.hasOwnProperty.call(updated, 'status')) {
+          setLiveStatus(updated.status || null);
         }
       })
       .on('postgres_changes', {
@@ -316,6 +322,7 @@ export function useRealtimeSwipes(sessionId, isActive) {
     tentativePick,
     lockedRestaurantId,
     liveGroupName,
+    liveStatus,
     broadcastStart,
     broadcastTentativePick,
     broadcastClearTentative,

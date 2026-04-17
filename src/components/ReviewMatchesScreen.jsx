@@ -1,9 +1,25 @@
 import { useState } from 'react';
 import { haptics } from '../utils/haptics';
 
-export default function ReviewMatchesScreen({ matches, mode, onSelect, onChooseForMe, onBack, isCreator = true, showOrderInfo = false }) {
+export default function ReviewMatchesScreen({
+  matches,
+  mode,
+  onSelect,
+  onChooseForMe,
+  onBack,
+  isCreator = true,
+  showOrderInfo = false,
+  // Status pill context. pickStatus: null | 'considering' | 'locked'.
+  // When set and onViewPick is provided, the pill at the top jumps to Lock-In.
+  pickStatus = null,
+  pickRestaurant = null,
+  onViewPick = null,
+}) {
   const [pressedId, setPressedId] = useState(null);
   const [showOrderExplain, setShowOrderExplain] = useState(false);
+  // onSelect=null from parent means matches are display-only (e.g. a group member,
+  // or anyone once a tentative/locked pick exists).
+  const matchesInteractable = typeof onSelect === 'function';
 
   return (
     <div style={{
@@ -55,6 +71,36 @@ export default function ReviewMatchesScreen({ matches, mode, onSelect, onChooseF
         )}
       </div>
 
+      {pickStatus && pickRestaurant && (
+        <button
+          onClick={() => { if (onViewPick) { haptics.medium(); onViewPick(); } }}
+          disabled={!onViewPick}
+          style={{
+            margin: '0 20px 12px',
+            display: 'flex', alignItems: 'center', gap: '10px',
+            padding: '10px 14px', borderRadius: '999px',
+            border: `1px solid ${pickStatus === 'locked' ? 'var(--accent-secondary)' : '#E8B946'}`,
+            background: pickStatus === 'locked' ? 'var(--accent-secondary-soft)' : 'rgba(232, 185, 70, 0.12)',
+            color: pickStatus === 'locked' ? 'var(--accent-secondary)' : '#E8B946',
+            cursor: onViewPick ? 'pointer' : 'default',
+            fontFamily: 'Nunito', fontSize: '13px', fontWeight: 800,
+            textAlign: 'left',
+            animation: 'fadeInUp 0.25s ease-out',
+          }}
+        >
+          <span style={{ fontSize: '14px' }}>{pickStatus === 'locked' ? '🔒' : '⏳'}</span>
+          <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {pickStatus === 'locked' ? 'Locked in — ' : 'Creator is considering — '}
+            <strong>{pickRestaurant.name}</strong>
+          </span>
+          {onViewPick && (
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ flexShrink: 0 }}>
+              <path d="M9 18l6-6-6-6"/>
+            </svg>
+          )}
+        </button>
+      )}
+
       {showOrderExplain && (
         <div
           onClick={() => setShowOrderExplain(false)}
@@ -101,23 +147,30 @@ export default function ReviewMatchesScreen({ matches, mode, onSelect, onChooseF
         flex: 1, overflowY: 'auto', padding: '0 16px 16px',
         WebkitOverflowScrolling: 'touch',
       }}>
-        {matches.map((restaurant, i) => (
+        {matches.map((restaurant, i) => {
+          const isPickedRestaurant = pickRestaurant?.id === restaurant.id;
+          return (
           <button
             key={restaurant.id}
-            onClick={() => { haptics.medium(); onSelect(restaurant); }}
-            onPointerDown={() => setPressedId(restaurant.id)}
-            onPointerUp={() => setPressedId(null)}
-            onPointerLeave={() => setPressedId(null)}
+            onClick={matchesInteractable ? () => { haptics.medium(); onSelect(restaurant); } : undefined}
+            disabled={!matchesInteractable}
+            onPointerDown={matchesInteractable ? () => setPressedId(restaurant.id) : undefined}
+            onPointerUp={matchesInteractable ? () => setPressedId(null) : undefined}
+            onPointerLeave={matchesInteractable ? () => setPressedId(null) : undefined}
             style={{
               width: '100%', display: 'flex', alignItems: 'center', gap: '14px',
               padding: '12px', marginBottom: '10px',
               background: 'var(--bg-card)', borderRadius: '16px',
-              border: '1px solid transparent',
-              cursor: 'pointer', textAlign: 'left',
+              border: isPickedRestaurant && pickStatus === 'locked'
+                ? '1px solid var(--accent-secondary)'
+                : '1px solid transparent',
+              cursor: matchesInteractable ? 'pointer' : 'default',
+              textAlign: 'left',
               transition: 'transform 0.15s, border-color 0.15s',
               transform: pressedId === restaurant.id ? 'scale(0.97)' : 'scale(1)',
               animation: `matchListSlide 0.3s ease-out ${i * 0.05}s both`,
               fontFamily: 'inherit',
+              opacity: matchesInteractable || isPickedRestaurant ? 1 : 0.85,
             }}
           >
             {/* Thumbnail */}
@@ -175,17 +228,21 @@ export default function ReviewMatchesScreen({ matches, mode, onSelect, onChooseF
               )}
             </div>
 
-            {/* Arrow */}
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
-              stroke="var(--text-dim)" strokeWidth="2.5" style={{ flexShrink: 0 }}>
-              <path d="M9 18l6-6-6-6"/>
-            </svg>
+            {/* Arrow — only when the row is clickable */}
+            {matchesInteractable && (
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+                stroke="var(--text-dim)" strokeWidth="2.5" style={{ flexShrink: 0 }}>
+                <path d="M9 18l6-6-6-6"/>
+              </svg>
+            )}
           </button>
-        ))}
+          );
+        })}
       </div>
 
-      {/* Choose for Me button — creator-only in group mode (sole arbiter) */}
-      {matches.length >= 2 && isCreator && (
+      {/* Choose for Me button — creator-only in group mode (sole arbiter).
+          Suppressed once a tentative/locked pick exists. */}
+      {matches.length >= 2 && isCreator && !pickStatus && (
         <div style={{ padding: '0 16px 32px' }}>
           <button
             onClick={() => { haptics.heavy(); onChooseForMe(); }}
@@ -204,7 +261,7 @@ export default function ReviewMatchesScreen({ matches, mode, onSelect, onChooseF
           </button>
         </div>
       )}
-      {matches.length >= 2 && !isCreator && mode === 'group' && (
+      {matches.length >= 2 && !isCreator && mode === 'group' && !pickStatus && (
         <div style={{
           padding: '0 16px 32px',
           fontSize: '12px', fontWeight: 700,

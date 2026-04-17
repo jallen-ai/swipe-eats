@@ -252,28 +252,27 @@ export default function App() {
     realtime.clearPartnerMatches();
   }, [realtime.newPartnerMatches, realtime.clearPartnerMatches, deck]);
 
-  // Non-creator receives a tentative pick from the creator — navigate to Lock-In
+  // Non-creator: when the creator broadcasts a tentative pick, just stash the
+  // restaurant locally so the status pill on Review Matches can name it. We
+  // intentionally do NOT force-navigate — the member might be mid-swipe.
   useEffect(() => {
     if (mode !== 'group' || session.isCreator) return;
-    if (!realtime.tentativePick) return;
+    if (!realtime.tentativePick) {
+      // If the member was viewing the tentative pick via the pill and the
+      // creator cleared it, drop back to review/swipe.
+      if (screen === 'lockin' && !realtime.lockedRestaurantId && !session.lockedRestaurantId) {
+        setLockedRestaurant(null);
+        setScreen(matches.length > 0 ? 'review' : 'swiping');
+      }
+      return;
+    }
     const restaurant = deck.find(r => r.id === realtime.tentativePick.restaurantId);
     if (!restaurant) return;
     setLockedRestaurant(restaurant);
     setLateJoinerBanner(false);
-    setScreen('lockin');
-  }, [realtime.tentativePick, mode, session.isCreator, deck]);
+  }, [realtime.tentativePick, realtime.lockedRestaurantId, session.lockedRestaurantId, mode, session.isCreator, screen, matches.length, deck]);
 
-  // Non-creator sees tentative cleared while on Lock-In — pull them back to review
-  useEffect(() => {
-    if (mode !== 'group' || session.isCreator) return;
-    if (screen !== 'lockin') return;
-    if (realtime.tentativePick) return;
-    if (realtime.lockedRestaurantId || session.lockedRestaurantId) return;
-    setLockedRestaurant(null);
-    setScreen(matches.length > 0 ? 'review' : 'swiping');
-  }, [realtime.tentativePick, realtime.lockedRestaurantId, session.lockedRestaurantId, mode, session.isCreator, screen, matches.length]);
-
-  // Committed lock-in from DB (realtime) — everyone transitions to Lock-In (non-tentative)
+  // Committed lock-in from DB (realtime) — big moment, navigate everyone to Lock-In.
   useEffect(() => {
     const lockedId = realtime.lockedRestaurantId;
     if (!lockedId || mode !== 'group') return;
@@ -284,6 +283,15 @@ export default function App() {
     setLateJoinerBanner(false);
     setScreen('lockin');
   }, [realtime.lockedRestaurantId, deck, mode]);
+
+  // Creator closed the session — kick everyone home and forget the stored session
+  // so the rejoin banner doesn't try to send us back.
+  useEffect(() => {
+    if (realtime.liveStatus !== 'closed') return;
+    if (screen === 'session') return;
+    clearActiveSession();
+    resetToHome({ offerRejoin: false });
+  }, [realtime.liveStatus, screen]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Prompt at 5 matches
   useEffect(() => {
@@ -461,12 +469,12 @@ export default function App() {
     setMatches(prev => prev.filter(m => m.id !== restaurantId));
   }, []);
 
-  // Called when a user selects a restaurant (match card tap, MatchTray tap, or CFM result).
-  // Solo: direct lock-in.
-  // Group creator: broadcast TENTATIVE pick (no DB write yet), show Lock-In with confirm/spin-again.
-  // Group non-creator: local-only preview, no broadcast, no DB write.
+  // Called when the creator (or solo user) picks a restaurant via match tap or CFM.
+  // Members can't reach this — their match thumbnails are non-interactive — so this
+  // only ever runs for the party with lock-in authority.
   const handleLockIn = (restaurant, opts = {}) => {
     const { fromCFM = false } = opts;
+    if (mode === 'group' && !session.isCreator) return;
     engineRef.current.recordOrder(restaurant);
     setLockedRestaurant(restaurant);
     setChoosingForMe(false);
@@ -477,6 +485,20 @@ export default function App() {
     }
     setScreen('lockin');
     haptics.lockIn();
+  };
+
+  // Pill click from Review Matches: navigate to the Lock-In screen to see the
+  // tentative or committed pick. Works for everyone (creator + members).
+  const handleViewLockIn = () => {
+    const pickId = session.lockedRestaurantId
+      || realtime.lockedRestaurantId
+      || realtime.tentativePick?.restaurantId;
+    if (!pickId) return;
+    const restaurant = deck.find(r => r.id === pickId);
+    if (!restaurant) return;
+    setLockedRestaurant(restaurant);
+    setLateJoinerBanner(false);
+    setScreen('lockin');
   };
 
   const handleChooseForMe = () => {
@@ -514,6 +536,25 @@ export default function App() {
     setCfmTentative(false);
     setScreen(matches.length > 0 ? 'review' : 'swiping');
   }, [realtime, matches.length]);
+
+  // Creator: unlock the session and let everyone return to review/swiping.
+  // Keeps all prior swipes — members don't have to re-vote.
+  const handleReopenSession = useCallback(async () => {
+    const res = await session.reopenSession();
+    if (!res?.success) return;
+    setLockedRestaurant(null);
+    setCfmTentative(false);
+    setScreen(matches.length > 0 ? 'review' : 'swiping');
+  }, [session, matches.length]);
+
+  // Creator: terminally close the session. Realtime drives every member
+  // (and us) back to home via the liveStatus='closed' effect.
+  const handleCloseSession = useCallback(async () => {
+    const res = await session.closeSession();
+    if (!res?.success) return;
+    clearActiveSession();
+    resetToHome({ offerRejoin: false });
+  }, [session]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleSwipeFilterApply = useCallback((newFilters) => {
     setActiveFilters(newFilters);
@@ -691,16 +732,33 @@ export default function App() {
   }
 
   if (screen === 'review') {
+    // Figure out what status pill to show on the review screen so members
+    // know when the creator is deciding / has locked in. Creator sees the
+    // same pill (it's a useful reminder when backing out of the Lock-In).
+    let pickStatus = null; // null | 'considering' | 'locked'
+    let pickRestaurant = null;
+    const lockedId = session.lockedRestaurantId || realtime.lockedRestaurantId;
+    if (mode === 'group' && lockedId) {
+      pickStatus = 'locked';
+      pickRestaurant = deck.find(r => r.id === lockedId) || null;
+    } else if (mode === 'group' && realtime.tentativePick?.restaurantId) {
+      pickStatus = 'considering';
+      pickRestaurant = deck.find(r => r.id === realtime.tentativePick.restaurantId) || null;
+    }
+    const canInteractWithMatches = (mode !== 'group' || session.isCreator) && !pickStatus;
     return (
       <>
         <ReviewMatchesScreen
           matches={reviewMatches}
           mode={mode}
-          onSelect={handleLockIn}
+          onSelect={canInteractWithMatches ? handleLockIn : null}
           onChooseForMe={handleChooseForMe}
           onBack={() => setScreen('swiping')}
           isCreator={mode !== 'group' || session.isCreator}
           showOrderInfo={showMatchOrderInfo}
+          pickStatus={pickStatus}
+          pickRestaurant={pickRestaurant}
+          onViewPick={handleViewLockIn}
         />
         {choosingForMe && (
           <ChooseForMeAnimation
@@ -715,15 +773,13 @@ export default function App() {
 
   if (screen === 'lockin') {
     // Decide UI state:
-    //   - committed: session.locked_restaurant_id set (via DB or realtime)
-    //   - tentative: group, not committed, creator broadcast a pick OR member received one
-    //   - preview: non-creator tapped a match card locally (no broadcast, no commit)
+    //   - committed: sessions.locked_restaurant_id set (via DB or realtime)
+    //   - tentative: group, not committed, creator broadcast a pick OR member is viewing one
     const committed = !!(realtime.lockedRestaurantId || session.lockedRestaurantId);
     const inTentative = mode === 'group' && !committed && (
       (session.isCreator && !!lockedRestaurant)
       || (!session.isCreator && !!realtime.tentativePick)
     );
-    const preview = mode === 'group' && !committed && !inTentative && !session.isCreator && !!lockedRestaurant;
     const creatorMember = realtime.members?.find(m => m.user_id === session.creatorId);
     const creatorName = creatorMember?.nickname || null;
     const tentativeProps = inTentative ? {
@@ -738,6 +794,18 @@ export default function App() {
     const handleLockInBack = inTentative && session.isCreator
       ? handleTentativeBack
       : () => setScreen(matches.length > 0 ? 'review' : 'swiping');
+    // Session-control props for the committed state:
+    //   - Solo: just "Done" (end everything locally).
+    //   - Group creator: Reopen swiping + Close session.
+    //   - Group member: Leave session (clears their active-session entry; they can rejoin via link).
+    const isGroupCreator = mode === 'group' && session.isCreator;
+    const lifecycleProps = (!committed || inTentative) ? null : {
+      role: mode !== 'group' ? 'solo' : (isGroupCreator ? 'creator' : 'member'),
+      onReopen: isGroupCreator ? handleReopenSession : null,
+      onClose: isGroupCreator ? handleCloseSession : null,
+      onLeave: !isGroupCreator ? endSession : null,
+      onDone: mode !== 'group' ? endSession : null,
+    };
     return (
       <LockInScreen
         restaurant={lockedRestaurant}
@@ -745,9 +813,7 @@ export default function App() {
         onBack={handleLockInBack}
         tentative={tentativeProps}
         banner={banner}
-        preview={preview}
-        onEndSession={endSession}
-        isGroupCreator={mode === 'group' && session.isCreator}
+        lifecycle={lifecycleProps}
       />
     );
   }
@@ -927,7 +993,12 @@ export default function App() {
       </div>
 
       {/* Match tray */}
-      <MatchTray matches={matches} onSelect={handleLockIn} onRemove={handleRemoveMatch} onViewAll={handleViewMatches} />
+      <MatchTray
+        matches={matches}
+        onSelect={(mode !== 'group' || session.isCreator) ? handleLockIn : null}
+        onRemove={handleRemoveMatch}
+        onViewAll={handleViewMatches}
+      />
 
       {/* Bottom controls */}
       <div style={{
