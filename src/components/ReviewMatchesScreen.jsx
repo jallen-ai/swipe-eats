@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { haptics } from '../utils/haptics';
 
-export default function ReviewMatchesScreen({ matches, mode, onSelect, onChooseForMe, onBack }) {
+export default function ReviewMatchesScreen({ matches, mode, onSelect, onChooseForMe, onBack, isCreator = true }) {
   const [pressedId, setPressedId] = useState(null);
 
   return (
@@ -126,8 +126,8 @@ export default function ReviewMatchesScreen({ matches, mode, onSelect, onChooseF
         ))}
       </div>
 
-      {/* Choose for Me button */}
-      {matches.length >= 2 && (
+      {/* Choose for Me button — creator-only in group mode (sole arbiter) */}
+      {matches.length >= 2 && isCreator && (
         <div style={{ padding: '0 16px 32px' }}>
           <button
             onClick={() => { haptics.heavy(); onChooseForMe(); }}
@@ -144,6 +144,16 @@ export default function ReviewMatchesScreen({ matches, mode, onSelect, onChooseF
             <span style={{ fontSize: '22px' }}>🎲</span>
             Choose for Me!
           </button>
+        </div>
+      )}
+      {matches.length >= 2 && !isCreator && mode === 'group' && (
+        <div style={{
+          padding: '0 16px 32px',
+          fontSize: '12px', fontWeight: 700,
+          color: 'var(--text-dim)',
+          textAlign: 'center',
+        }}>
+          The group creator picks the final restaurant
         </div>
       )}
     </div>

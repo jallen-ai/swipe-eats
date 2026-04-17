@@ -48,6 +48,7 @@ export function useSession() {
   const [deck, setDeck] = useState(null);
   const [creatorId, setCreatorId] = useState(null);
   const [groupName, setGroupName] = useState(null);
+  const [lockedRestaurantId, setLockedRestaurantId] = useState(null);
 
   const createSession = useCallback(async (restaurants, nickname, groupNameParam) => {
     const userId = await getUserId();
@@ -162,6 +163,7 @@ export function useSession() {
       setCreatorId(sess.creator_id);
       setGroupName(sess.group_name || null);
       setSessionStatus(currentStatus);
+      setLockedRestaurantId(sess.locked_restaurant_id || null);
 
       const builtDeck = await buildDeckFromIds(sess.deck_ids, userLat, userLng);
 
@@ -199,6 +201,7 @@ export function useSession() {
         swipedIds,
         matchIds,
         isReturning,
+        lockedRestaurantId: sess.locked_restaurant_id || null,
       };
     } catch (e) {
       console.error('joinSession error:', e);
@@ -265,6 +268,26 @@ export function useSession() {
       .eq('user_id', userId);
   }, [sessionId]);
 
+  // Creator-only: persist the chosen restaurant. DB trigger enforces creator check.
+  const lockInRestaurant = useCallback(async (restaurantId) => {
+    if (!sessionId || !restaurantId) return { success: false };
+    const { error } = await supabase
+      .from('sessions')
+      .update({
+        locked_restaurant_id: restaurantId,
+        locked_at: new Date().toISOString(),
+        status: 'locked',
+      })
+      .eq('id', sessionId);
+    if (error) {
+      console.error('Lock-in failed:', error.message);
+      return { success: false, error: error.message };
+    }
+    setLockedRestaurantId(restaurantId);
+    setSessionStatus('locked');
+    return { success: true };
+  }, [sessionId]);
+
   return {
     sessionId,
     sessionStatus,
@@ -274,10 +297,12 @@ export function useSession() {
     isCreator,
     creatorId,
     groupName,
+    lockedRestaurantId,
     createSession,
     joinSession,
     activateSession,
     startSession,
     updateNickname,
+    lockInRestaurant,
   };
 }

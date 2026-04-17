@@ -11,6 +11,10 @@ export function useRealtimeSwipes(sessionId, isActive) {
   const [sessionStarted, setSessionStarted] = useState(false);
   // Persistent members from DB: [{ user_id, nickname, joined_at, swipe_count, isOnline }]
   const [members, setMembers] = useState([]);
+  // Tentative pick (ephemeral, broadcast only): { restaurantId, byUserId }
+  const [tentativePick, setTentativePick] = useState(null);
+  // Confirmed lock-in from sessions.locked_restaurant_id (persisted)
+  const [lockedRestaurantId, setLockedRestaurantId] = useState(null);
   const myRightSwipesRef = useRef(new Set());
   const myUserIdRef = useRef(null);
   const channelRef = useRef(null);
@@ -106,6 +110,28 @@ export function useRealtimeSwipes(sessionId, isActive) {
     const channel = supabase.channel(`session:${sessionId}`)
       .on('broadcast', { event: 'session_start' }, () => {
         setSessionStarted(true);
+      })
+      .on('broadcast', { event: 'tentative_pick' }, ({ payload }) => {
+        if (!payload?.restaurantId) return;
+        setTentativePick({ restaurantId: payload.restaurantId, byUserId: payload.byUserId });
+      })
+      .on('broadcast', { event: 'tentative_clear' }, () => {
+        setTentativePick(null);
+      })
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'sessions',
+        filter: `id=eq.${sessionId}`,
+      }, (payload) => {
+        const updated = payload.new;
+        if (!updated) return;
+        if (updated.locked_restaurant_id) {
+          setLockedRestaurantId(updated.locked_restaurant_id);
+          setTentativePick(null);
+        } else {
+          setLockedRestaurantId(null);
+        }
       })
       .on('postgres_changes', {
         event: 'INSERT',
@@ -242,6 +268,27 @@ export function useRealtimeSwipes(sessionId, isActive) {
     }
   }, []);
 
+  const broadcastTentativePick = useCallback((restaurantId) => {
+    const userId = myUserIdRef.current;
+    if (!channelRef.current || !userId) return;
+    setTentativePick({ restaurantId, byUserId: userId });
+    channelRef.current.send({
+      type: 'broadcast',
+      event: 'tentative_pick',
+      payload: { restaurantId, byUserId: userId },
+    });
+  }, []);
+
+  const broadcastClearTentative = useCallback(() => {
+    if (!channelRef.current) return;
+    setTentativePick(null);
+    channelRef.current.send({
+      type: 'broadcast',
+      event: 'tentative_clear',
+      payload: {},
+    });
+  }, []);
+
   const clearPartnerMatch = useCallback(() => {
     setNewPartnerMatch(null);
   }, []);
@@ -253,7 +300,11 @@ export function useRealtimeSwipes(sessionId, isActive) {
     members,
     newPartnerMatch,
     sessionStarted,
+    tentativePick,
+    lockedRestaurantId,
     broadcastStart,
+    broadcastTentativePick,
+    broadcastClearTentative,
     clearPartnerMatch,
     recordSwipe,
   };

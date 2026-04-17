@@ -91,11 +91,33 @@ function ActionButton({ href, onClick, icon, label, sublabel, variant = 'default
   return <button onClick={onClick} style={style}>{content}</button>;
 }
 
-export default function LockInScreen({ restaurant, onBack, mode }) {
-  const [showConfetti] = useState(true);
+export default function LockInScreen({
+  restaurant,
+  onBack,
+  mode,
+  // Group tentative-pick state. null/undefined = standard locked UI (solo or confirmed group).
+  //   isCreator: show Lock It In + (optional) Spin Again buttons
+  //   !isCreator: show "Waiting for <setByName>..." message
+  // In either tentative case, the standard action buttons (Delivery/Reservation/Maps)
+  // are hidden — they only make sense post-confirmation.
+  tentative = null,
+  // Optional banner shown at the top — used for late-joiner "group picked this" case.
+  banner = null,
+  // Preview mode: non-creator tapped a match card locally; nothing committed, no tentative.
+  // Swaps the header label so "THE GROUP PICKED" isn't misleading.
+  preview = false,
+}) {
+  // Suppress confetti in tentative or preview state — only celebrate on real confirm.
+  // Derived (not initial-only) so confetti fires when transitioning tentative → locked.
+  const showConfetti = !tentative && !preview;
   const [deliveryExpanded, setDeliveryExpanded] = useState(false);
 
-  const modeLabel = mode === 'group' ? "THE GROUP PICKED" : mode === 'duo' ? "YOU BOTH PICKED" : "TONIGHT'S PICK";
+  const isTentative = !!tentative;
+  const modeLabel = isTentative
+    ? 'TENTATIVE PICK'
+    : preview
+      ? 'PREVIEW'
+      : mode === 'group' ? 'THE GROUP PICKED' : mode === 'duo' ? 'YOU BOTH PICKED' : "TONIGHT'S PICK";
 
   return (
     <div style={{
@@ -182,7 +204,67 @@ export default function LockInScreen({ restaurant, onBack, mode }) {
           </p>
         )}
 
-        {/* Action buttons */}
+        {banner && (
+          <div style={{
+            background: 'var(--accent-secondary-soft)',
+            border: '1px solid var(--accent-secondary)',
+            borderRadius: '12px',
+            padding: '12px 14px',
+            marginBottom: '14px',
+            fontSize: '13px', fontWeight: 700,
+            color: 'var(--accent-secondary)',
+          }}>
+            {banner}
+          </div>
+        )}
+
+        {isTentative && tentative.isCreator && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '14px' }}>
+            <button
+              onClick={() => { haptics.lockIn(); tentative.onConfirm?.(); }}
+              style={{
+                padding: '16px', borderRadius: 'var(--radius-btn)',
+                border: 'none', cursor: 'pointer', fontFamily: 'Nunito',
+                background: 'linear-gradient(135deg, var(--accent-primary), #FF7043)',
+                color: 'white', fontSize: '17px', fontWeight: 900,
+                boxShadow: '0 4px 20px var(--accent-primary-glow)',
+              }}
+            >Lock it in</button>
+            {tentative.onSpinAgain && (
+              <button
+                onClick={() => { haptics.heavy(); tentative.onSpinAgain?.(); }}
+                style={{
+                  padding: '14px', borderRadius: 'var(--radius-btn)',
+                  border: '1px solid var(--bg-surface)',
+                  background: 'var(--bg-card)', color: 'var(--text-primary)',
+                  fontSize: '15px', fontWeight: 800, cursor: 'pointer',
+                  fontFamily: 'Nunito',
+                }}
+              >🎲 Spin again</button>
+            )}
+          </div>
+        )}
+
+        {isTentative && !tentative.isCreator && (
+          <div style={{
+            background: 'var(--bg-card)',
+            border: '1px solid var(--border-hairline)',
+            borderRadius: '14px',
+            padding: '16px',
+            marginBottom: '14px',
+            textAlign: 'center',
+          }}>
+            <div style={{ fontSize: '14px', fontWeight: 800, color: 'var(--text-primary)', marginBottom: '4px' }}>
+              Waiting for {tentative.setByName || 'the group creator'} to confirm…
+            </div>
+            <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-dim)' }}>
+              They can lock this in or spin again
+            </div>
+          </div>
+        )}
+
+        {/* Action buttons — hidden while the pick is tentative */}
+        {!isTentative && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
           {/* Order Delivery / Pickup - Primary */}
           {restaurant.delivery !== false && (
@@ -303,6 +385,7 @@ export default function LockInScreen({ restaurant, onBack, mode }) {
             />
           )}
         </div>
+        )}
       </div>
     </div>
   );
