@@ -46,7 +46,7 @@ export default function ReviewMatchesScreen({
         </button>
         <div style={{ flex: 1, minWidth: 0 }}>
           <h2 style={{ fontSize: '20px', fontWeight: 900, margin: 0 }}>
-            Your Matches
+            {mode === 'group' && !isCreator ? 'Group Matches' : 'Your Matches'}
           </h2>
           <p style={{ fontSize: '13px', color: 'var(--text-dim)', fontWeight: 600, margin: 0 }}>
             {matches.length} {matches.length === 1 ? 'restaurant' : 'restaurants'} matched
@@ -71,34 +71,46 @@ export default function ReviewMatchesScreen({
         )}
       </div>
 
-      {pickStatus && pickRestaurant && (
-        <button
-          onClick={() => { if (onViewPick) { haptics.medium(); onViewPick(); } }}
-          disabled={!onViewPick}
+      {pickStatus && (
+        <div
+          onClick={() => { if (onViewPick && pickStatus !== 'pending') { haptics.medium(); onViewPick(); } }}
           style={{
             margin: '0 20px 12px',
             display: 'flex', alignItems: 'center', gap: '10px',
             padding: '10px 14px', borderRadius: '999px',
-            border: `1px solid ${pickStatus === 'locked' ? 'var(--accent-secondary)' : '#E8B946'}`,
-            background: pickStatus === 'locked' ? 'var(--accent-secondary-soft)' : 'rgba(232, 185, 70, 0.12)',
-            color: pickStatus === 'locked' ? 'var(--accent-secondary)' : '#E8B946',
-            cursor: onViewPick ? 'pointer' : 'default',
+            border: `1px solid ${
+              pickStatus === 'locked' ? 'var(--accent-secondary)'
+              : pickStatus === 'considering' ? '#E8B946'
+              : 'var(--border-hairline)'
+            }`,
+            background:
+              pickStatus === 'locked' ? 'var(--accent-secondary-soft)'
+              : pickStatus === 'considering' ? 'rgba(232, 185, 70, 0.12)'
+              : 'var(--bg-card)',
+            color:
+              pickStatus === 'locked' ? 'var(--accent-secondary)'
+              : pickStatus === 'considering' ? '#E8B946'
+              : 'var(--text-secondary)',
+            cursor: (onViewPick && pickStatus !== 'pending') ? 'pointer' : 'default',
             fontFamily: 'Nunito', fontSize: '13px', fontWeight: 800,
             textAlign: 'left',
             animation: 'fadeInUp 0.25s ease-out',
           }}
         >
-          <span style={{ fontSize: '14px' }}>{pickStatus === 'locked' ? '🔒' : '⏳'}</span>
-          <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-            {pickStatus === 'locked' ? 'Locked in — ' : 'Creator is considering — '}
-            <strong>{pickRestaurant.name}</strong>
+          <span style={{ fontSize: '14px' }}>
+            {pickStatus === 'locked' ? '🔒' : '⏳'}
           </span>
-          {onViewPick && (
+          <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {pickStatus === 'locked' && pickRestaurant && (<>Locked in — <strong>{pickRestaurant.name}</strong></>)}
+            {pickStatus === 'considering' && pickRestaurant && (<>Creator is considering — <strong>{pickRestaurant.name}</strong></>)}
+            {pickStatus === 'pending' && (<>Decision pending — the group creator will pick the winner</>)}
+          </span>
+          {onViewPick && pickStatus !== 'pending' && (
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ flexShrink: 0 }}>
               <path d="M9 18l6-6-6-6"/>
             </svg>
           )}
-        </button>
+        </div>
       )}
 
       {showOrderExplain && (
@@ -261,16 +273,8 @@ export default function ReviewMatchesScreen({
           </button>
         </div>
       )}
-      {matches.length >= 2 && !isCreator && mode === 'group' && !pickStatus && (
-        <div style={{
-          padding: '0 16px 32px',
-          fontSize: '12px', fontWeight: 700,
-          color: 'var(--text-dim)',
-          textAlign: 'center',
-        }}>
-          The group creator picks the final restaurant
-        </div>
-      )}
+      {/* The 'pending' pill at the top already tells members the creator will pick,
+          so the old footer hint was redundant once the pill was added. */}
     </div>
   );
 }

@@ -732,10 +732,12 @@ export default function App() {
   }
 
   if (screen === 'review') {
-    // Figure out what status pill to show on the review screen so members
-    // know when the creator is deciding / has locked in. Creator sees the
-    // same pill (it's a useful reminder when backing out of the Lock-In).
-    let pickStatus = null; // null | 'considering' | 'locked'
+    // Figure out what status pill to show on the review screen.
+    //   - locked:      creator has committed (everyone sees this)
+    //   - considering: creator is on the tentative pick (everyone sees this)
+    //   - pending:     group member, no tentative yet — reinforces that the
+    //                  list is read-only and the creator hasn't decided
+    let pickStatus = null; // null | 'pending' | 'considering' | 'locked'
     let pickRestaurant = null;
     const lockedId = session.lockedRestaurantId || realtime.lockedRestaurantId;
     if (mode === 'group' && lockedId) {
@@ -744,6 +746,8 @@ export default function App() {
     } else if (mode === 'group' && realtime.tentativePick?.restaurantId) {
       pickStatus = 'considering';
       pickRestaurant = deck.find(r => r.id === realtime.tentativePick.restaurantId) || null;
+    } else if (mode === 'group' && !session.isCreator) {
+      pickStatus = 'pending';
     }
     const canInteractWithMatches = (mode !== 'group' || session.isCreator) && !pickStatus;
     return (
