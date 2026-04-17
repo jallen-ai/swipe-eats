@@ -20,10 +20,19 @@ function getMapsUrl(restaurant) {
 }
 
 function getOpenTableUrl(restaurant) {
-  // Search by name + city only — full addresses break OpenTable search
-  const city = getCityFromAddress(restaurant.address);
-  const query = encodeURIComponent(`${restaurant.name} ${city}`.trim());
-  return `https://www.opentable.com/s?term=${query}`;
+  // OpenTable's search ranker performs better with the restaurant name alone
+  // than with "Name City" as a combined term (the city portion confuses matching
+  // on unique names like "Cabra" in Chicago). When coordinates are available,
+  // we pass them so OpenTable filters nearby results instead.
+  const params = new URLSearchParams({ term: restaurant.name });
+  if (restaurant.lat && restaurant.lng) {
+    params.set('latitude', String(restaurant.lat));
+    params.set('longitude', String(restaurant.lng));
+  } else {
+    const city = getCityFromAddress(restaurant.address);
+    if (city) params.set('term', `${restaurant.name} ${city}`);
+  }
+  return `https://www.opentable.com/s?${params.toString()}`;
 }
 
 function getDeliveryUrl(app, restaurant) {
