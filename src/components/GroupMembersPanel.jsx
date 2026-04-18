@@ -9,7 +9,16 @@ export default function GroupMembersPanel({
   sessionId,
   isCreator,
   onClose,
+  // Creator-only callback to terminally close the session for everyone.
+  onCloseSession,
 }) {
+  const handleCloseSession = () => {
+    if (!onCloseSession) return;
+    const ok = window.confirm('Close this session for everyone? This cannot be undone.');
+    if (!ok) return;
+    haptics.medium();
+    onCloseSession();
+  };
   const [copied, setCopied] = useState(false);
 
   const base = import.meta.env.BASE_URL.replace(/\/$/, '');
@@ -235,6 +244,36 @@ export default function GroupMembersPanel({
                 </div>
               );
             })}
+          </div>
+        )}
+
+        {isCreator && onCloseSession && (
+          <div style={{
+            marginTop: '16px', paddingTop: '16px',
+            borderTop: '1px solid var(--border-hairline)',
+          }}>
+            <button
+              onClick={handleCloseSession}
+              style={{
+                width: '100%', padding: '12px',
+                borderRadius: '12px',
+                border: '1px solid rgba(244,67,54,0.4)',
+                background: 'transparent',
+                color: '#F44336',
+                fontSize: '14px', fontWeight: 800,
+                cursor: 'pointer', fontFamily: 'Nunito',
+              }}
+            >
+              Close session for everyone
+            </button>
+            <p style={{
+              margin: '8px 4px 0',
+              fontSize: '11px', fontWeight: 600,
+              color: 'var(--text-dim)', textAlign: 'center',
+              lineHeight: 1.4,
+            }}>
+              Ends the session immediately for all members. This cannot be undone.
+            </p>
           </div>
         )}
       </div>

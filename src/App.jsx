@@ -1069,7 +1069,8 @@ export default function App() {
         />
       )}
 
-      {/* Group members panel — also serves as the re-share hub for the creator */}
+      {/* Group members panel — also serves as the re-share hub for the creator
+          and (creator-only) lets them terminally close the session for everyone. */}
       {showGroupPanel && mode === 'group' && (
         <GroupMembersPanel
           members={realtime.members}
@@ -1079,6 +1080,10 @@ export default function App() {
           sessionId={session.sessionId}
           isCreator={session.isCreator}
           onClose={() => setShowGroupPanel(false)}
+          onCloseSession={session.isCreator ? async () => {
+            setShowGroupPanel(false);
+            await handleCloseSession();
+          } : null}
         />
       )}
 
