@@ -719,7 +719,8 @@ export default function App() {
     return (
       <GroupLinkScreen
         sessionId={session.sessionId}
-        memberCount={realtime.memberCount || 1}
+        members={realtime.members || []}
+        myUserId={myUserId}
         onContinue={handleGroupContinue}
         onBack={goHome}
         onSolo={handleGoSolo}
