@@ -11,11 +11,12 @@ function getCityFromAddress(address) {
 }
 
 function getMapsUrl(restaurant) {
-  // Use Place ID for precise linking when available (Supabase restaurants)
-  if (restaurant.id && restaurant.id.startsWith('ChIJ')) {
-    return `https://www.google.com/maps/place/?q=place_id:${restaurant.id}`;
-  }
-  const query = encodeURIComponent(`${restaurant.name} ${restaurant.address || ''}`);
+  // Place ID linking was unreliable — Google would sometimes fail to resolve
+  // the location. Name + city/zip search is more forgiving.
+  const city = getCityFromAddress(restaurant.address);
+  const zipMatch = (restaurant.address || '').match(/\b\d{5}\b/);
+  const locale = city || (zipMatch ? zipMatch[0] : '');
+  const query = encodeURIComponent(`${restaurant.name} ${locale}`.trim());
   return `https://www.google.com/maps/search/?api=1&query=${query}`;
 }
 

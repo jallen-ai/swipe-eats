@@ -325,7 +325,7 @@ export default function GroupLinkScreen({
               Give your group a name to get started
             </div>
           )}
-          {!isJoiner && onSolo && groupNameReady && (
+          {!isJoiner && onSolo && (
             <button
               onClick={() => { haptics.light(); onSolo(); }}
               style={{
