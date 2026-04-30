@@ -144,6 +144,7 @@ async function fetchFromGoogle(cellLat: number, cellLng: number, searchRadius: n
     "places.reservable",
     "places.editorialSummary",
     "places.nationalPhoneNumber",
+    "places.websiteUri",
   ].join(",");
 
   const resp = await fetch(url, {
@@ -248,6 +249,7 @@ async function mapPlace(place: any, gridCell: string) {
     hours: place.regularOpeningHours ?? null,
     editorial_summary: place.editorialSummary?.text ?? null,
     phone: place.nationalPhoneNumber ?? null,
+    website: place.websiteUri ?? null,
     delivery: place.delivery ?? null,
     dine_in: place.dineIn ?? null,
     takeout: place.takeout ?? null,

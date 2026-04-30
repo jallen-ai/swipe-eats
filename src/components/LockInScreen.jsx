@@ -230,11 +230,32 @@ export default function LockInScreen({
           {restaurant.name}
         </h1>
         <div style={{ display: 'flex', gap: '10px', alignItems: 'center', marginBottom: '6px', flexWrap: 'wrap' }}>
-          <span style={{
-            background: 'var(--bg-surface)', padding: '4px 12px',
-            borderRadius: '20px', fontSize: '13px', fontWeight: 700,
-            color: 'var(--accent-secondary)',
-          }}>{restaurant.cuisine}</span>
+          {restaurant.website ? (
+            <a
+              href={restaurant.website}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={() => haptics.light()}
+              style={{
+                background: 'var(--bg-surface)', padding: '4px 12px',
+                borderRadius: '20px', fontSize: '13px', fontWeight: 700,
+                color: 'var(--accent-secondary)',
+                textDecoration: 'none',
+                display: 'inline-flex', alignItems: 'center', gap: '4px',
+              }}
+            >
+              Website
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M7 17L17 7M17 7H8M17 7v9"/>
+              </svg>
+            </a>
+          ) : (
+            <span style={{
+              background: 'var(--bg-surface)', padding: '4px 12px',
+              borderRadius: '20px', fontSize: '13px', fontWeight: 700,
+              color: 'var(--accent-secondary)',
+            }}>{restaurant.cuisine}</span>
+          )}
           <span style={{ fontSize: '14px', color: 'var(--text-secondary)', fontWeight: 700 }}>{restaurant.price}</span>
           <span style={{ fontSize: '14px', color: 'var(--text-secondary)', fontWeight: 700 }}>{restaurant.distance}</span>
           {restaurant.rating && (

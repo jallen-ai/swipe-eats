@@ -31,6 +31,7 @@ function mapRestaurant(row, userLat, userLng) {
     hours: row.hours,
     editorialSummary: row.editorial_summary || null,
     phone: row.phone || null,
+    website: row.website || null,
     delivery: row.delivery,
     dineIn: row.dine_in,
     takeout: row.takeout,
