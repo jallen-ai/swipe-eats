@@ -136,8 +136,11 @@ export default function SessionScreen({
           }}
         />
         <h1 style={{
-          fontSize: '26px',
-          fontWeight: 900,
+          fontFamily: '"Pirata One", "Nunito", serif',
+          fontSize: '38px',
+          fontWeight: 400,
+          letterSpacing: '0.04em',
+          textTransform: 'uppercase',
           background: 'linear-gradient(135deg, var(--accent-primary), #FF8A65)',
           WebkitBackgroundClip: 'text',
           WebkitTextFillColor: 'transparent',
@@ -410,16 +413,11 @@ export default function SessionScreen({
             aria-expanded={cuisineOpen}
             style={{
               width: '100%', display: 'flex', alignItems: 'center', gap: '8px',
-              background: 'var(--bg-card)', border: 'none', borderRadius: '12px',
-              padding: '10px 12px', cursor: 'pointer', color: 'var(--text-primary)',
+              background: 'transparent', border: 'none', borderRadius: 0,
+              padding: 0, cursor: 'pointer', color: 'var(--text-primary)',
               fontFamily: 'Nunito',
             }}
           >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
-              stroke={selectedCuisines.length > 0 ? 'var(--accent-secondary)' : 'var(--text-secondary)'}
-              strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M3 11h18M5 11V7a2 2 0 012-2h10a2 2 0 012 2v4M7 15v4M12 15v4M17 15v4M3 11l1 4h16l1-4"/>
-            </svg>
             <span style={{
               fontSize: '13px', fontWeight: 700, flex: 1, textAlign: 'left',
               color: selectedCuisines.length > 0 ? 'var(--accent-secondary)' : 'var(--text-secondary)',

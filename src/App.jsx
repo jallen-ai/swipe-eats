@@ -865,7 +865,9 @@ export default function App() {
             </svg>
           </button>
           <span style={{
-            fontSize: '20px', fontWeight: 900,
+            fontFamily: '"Pirata One", "Nunito", serif',
+            fontSize: '26px', fontWeight: 400,
+            letterSpacing: '0.04em', textTransform: 'uppercase',
             background: 'linear-gradient(135deg, var(--accent-primary), #FF8A65)',
             WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
           }}>Nosh Pit</span>
