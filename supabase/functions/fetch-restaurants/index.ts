@@ -328,6 +328,10 @@ Deno.serve(async (req) => {
         const restaurants = await Promise.all(
           filteredPlaces.map((p: any) => mapPlace(p, cell))
         );
+        // Sort by place_id so concurrent processCell upserts take row locks in
+        // the same order — adjacent cells overlap on border restaurants and
+        // would otherwise deadlock.
+        restaurants.sort((a, b) => a.place_id.localeCompare(b.place_id));
 
         const { error: upsertError } = await supabase
           .from("restaurants")
@@ -348,9 +352,11 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Process stale cells in parallel batches of 10
-    for (let i = 0; i < staleCells.length; i += 10) {
-      const batch = staleCells.slice(i, i + 10);
+    // Process stale cells in parallel batches of 5. Lowered from 10 because
+    // adjacent cells share border restaurants — too much concurrency causes
+    // upsert deadlocks even with sorted row locks.
+    for (let i = 0; i < staleCells.length; i += 5) {
+      const batch = staleCells.slice(i, i + 5);
       await Promise.all(batch.map(processCell));
     }
 
