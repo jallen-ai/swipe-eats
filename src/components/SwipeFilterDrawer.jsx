@@ -1,12 +1,15 @@
 import { useState } from 'react';
 import { haptics } from '../utils/haptics';
 import { supabase } from '../utils/supabase';
+import { CUISINE_FILTER_OPTIONS } from '../utils/cuisine';
 
 const PRICE_LABELS = ['$', '$$', '$$$', '$$$$'];
 
 export default function SwipeFilterDrawer({ filters, onApply, onClose, locationName, onLocationChange, canChangeLocation }) {
   const [maxDistance, setMaxDistance] = useState(filters.maxDistance ?? 20);
   const [selectedPrices, setSelectedPrices] = useState(filters.selectedPrices ?? []);
+  const [selectedCuisines, setSelectedCuisines] = useState(filters.selectedCuisines ?? []);
+  const [cuisineOpen, setCuisineOpen] = useState(false);
   const [openNow, setOpenNow] = useState(filters.openNow ?? false);
 
   // Location search state
@@ -22,9 +25,16 @@ export default function SwipeFilterDrawer({ filters, onApply, onClose, locationN
     );
   };
 
+  const toggleCuisine = (label) => {
+    haptics.filterTap();
+    setSelectedCuisines(prev =>
+      prev.includes(label) ? prev.filter(c => c !== label) : [...prev, label]
+    );
+  };
+
   const handleApply = () => {
     haptics.medium();
-    onApply({ ...filters, maxDistance, selectedPrices, openNow });
+    onApply({ ...filters, maxDistance, selectedPrices, selectedCuisines, openNow });
   };
 
   const handleLocationSearch = async () => {
@@ -73,6 +83,9 @@ export default function SwipeFilterDrawer({ filters, onApply, onClose, locationN
         padding: '24px', display: 'flex', flexDirection: 'column', gap: '20px',
         animation: 'fadeInUp 0.2s ease-out',
         boxShadow: '0 -4px 24px rgba(0,0,0,0.3)',
+        maxHeight: 'calc(100% - 60px)',
+        overflowY: 'auto',
+        WebkitOverflowScrolling: 'touch',
       }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <span style={{ fontSize: '16px', fontWeight: 800, color: 'var(--text-primary)' }}>Filters</span>
@@ -197,6 +210,80 @@ export default function SwipeFilterDrawer({ filters, onApply, onClose, locationN
               );
             })}
           </div>
+        </div>
+
+        {/* Cuisine multi-select (collapsible) */}
+        <div>
+          <button
+            onClick={() => { haptics.filterTap(); setCuisineOpen(o => !o); }}
+            aria-expanded={cuisineOpen}
+            style={{
+              width: '100%', display: 'flex', alignItems: 'center', gap: '8px',
+              background: 'var(--bg-card)', border: 'none', borderRadius: '12px',
+              padding: '12px 14px', cursor: 'pointer', color: 'var(--text-primary)',
+              fontFamily: 'Nunito',
+            }}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+              stroke={selectedCuisines.length > 0 ? 'var(--accent-secondary)' : 'var(--text-secondary)'}
+              strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M3 11h18M5 11V7a2 2 0 012-2h10a2 2 0 012 2v4M7 15v4M12 15v4M17 15v4M3 11l1 4h16l1-4"/>
+            </svg>
+            <span style={{
+              fontSize: '14px', fontWeight: 700, flex: 1, textAlign: 'left',
+              color: selectedCuisines.length > 0 ? 'var(--accent-secondary)' : 'var(--text-secondary)',
+            }}>
+              Cuisine
+            </span>
+            <span style={{
+              fontSize: '12px', fontWeight: 700,
+              color: selectedCuisines.length > 0 ? 'var(--accent-secondary)' : 'var(--text-dim)',
+            }}>
+              {selectedCuisines.length === 0
+                ? 'All'
+                : selectedCuisines.length === 1
+                  ? selectedCuisines[0]
+                  : `${selectedCuisines.length} selected`}
+            </span>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+              stroke="var(--text-dim)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+              style={{ transform: cuisineOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }}>
+              <polyline points="6 9 12 15 18 9"/>
+            </svg>
+          </button>
+
+          {cuisineOpen && (
+            <div style={{
+              marginTop: '10px',
+              display: 'grid',
+              gridTemplateColumns: 'repeat(3, 1fr)',
+              gap: '8px',
+              animation: 'fadeInUp 0.18s ease-out',
+            }}>
+              {CUISINE_FILTER_OPTIONS.map(opt => {
+                const isActive = selectedCuisines.includes(opt.label);
+                return (
+                  <button
+                    key={opt.label}
+                    onClick={() => toggleCuisine(opt.label)}
+                    style={{
+                      padding: '8px 6px', borderRadius: '10px',
+                      border: isActive ? '2px solid var(--accent-secondary)' : '2px solid var(--bg-surface)',
+                      background: isActive ? 'var(--accent-secondary-soft)' : 'transparent',
+                      color: isActive ? 'var(--accent-secondary)' : 'var(--text-secondary)',
+                      fontSize: '12px', fontWeight: 800, cursor: 'pointer',
+                      fontFamily: 'Nunito',
+                      whiteSpace: 'nowrap',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                    }}
+                  >
+                    {opt.label}
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </div>
 
         {/* Open Now toggle */}

@@ -51,6 +51,28 @@ export function getCuisineGroup(cuisine) {
   return "Other";
 }
 
+// Filter dropdown options. Each label maps to one or more raw cuisine values
+// so a single chip catches related tags (e.g. "Mediterranean" also matches
+// Greek). Order is the visual order of chips in the filter drawer.
+export const CUISINE_FILTER_OPTIONS = [
+  { label: "Fast Food", match: ["Fast Food", "Burgers", "Sandwiches"] },
+  { label: "American", match: ["American"] },
+  { label: "Italian", match: ["Italian"] },
+  { label: "Pizza", match: ["Pizza"] },
+  { label: "Mexican", match: ["Mexican"] },
+  { label: "Chinese", match: ["Chinese"] },
+  { label: "Japanese", match: ["Japanese", "Sushi"] },
+  { label: "Thai", match: ["Thai", "Vietnamese"] },
+  { label: "Indian", match: ["Indian"] },
+  { label: "Mediterranean", match: ["Mediterranean", "Greek"] },
+  { label: "BBQ", match: ["BBQ", "Steakhouse"] },
+  { label: "Seafood", match: ["Seafood"] },
+];
+
+export const CUISINE_FILTER_MAP = Object.fromEntries(
+  CUISINE_FILTER_OPTIONS.map(o => [o.label, o.match])
+);
+
 // Price level (1-4) → display string
 export function formatPriceLevel(level) {
   if (level == null) return "";

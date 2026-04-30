@@ -317,6 +317,21 @@ export default function GroupLinkScreen({
           >
             Start Swiping!
           </button>
+          {!isJoiner && onSolo && (
+            <button
+              onClick={() => { haptics.light(); onSolo(); }}
+              style={{
+                background: 'transparent', border: 'none',
+                color: 'var(--accent-secondary)', cursor: 'pointer',
+                fontSize: '14px', fontWeight: 800, fontFamily: 'Nunito',
+                padding: '8px', alignSelf: 'center',
+                textDecoration: 'underline', textUnderlineOffset: '3px',
+                opacity: 1,
+              }}
+            >
+              or dine solo
+            </button>
+          )}
           {!groupNameReady && (
             <div style={{
               fontSize: '12px', fontWeight: 700, textAlign: 'center',
@@ -324,20 +339,6 @@ export default function GroupLinkScreen({
             }}>
               Give your group a name to get started
             </div>
-          )}
-          {!isJoiner && onSolo && (
-            <button
-              onClick={() => { haptics.light(); onSolo(); }}
-              style={{
-                background: 'transparent', border: 'none',
-                color: 'var(--text-secondary)', cursor: 'pointer',
-                fontSize: '13px', fontWeight: 700, fontFamily: 'Nunito',
-                padding: '6px', alignSelf: 'center',
-                textDecoration: 'underline', textUnderlineOffset: '3px',
-              }}
-            >
-              or dine solo
-            </button>
           )}
         </div>
       </div>

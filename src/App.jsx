@@ -2,7 +2,7 @@ import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import { haptics } from './utils/haptics';
 import { PreferenceEngine } from './utils/PreferenceEngine';
 import { FALLBACK_RESTAURANTS } from './data/restaurants';
-import { calcDistanceMi, formatDistance } from './utils/cuisine';
+import { calcDistanceMi, formatDistance, CUISINE_FILTER_MAP } from './utils/cuisine';
 import { supabase, authReadyPromise, getUserId } from './utils/supabase';
 import { useSession } from './hooks/useSession';
 import { useRealtimeSwipes } from './hooks/useRealtimeSwipes';
@@ -52,7 +52,7 @@ export default function App() {
   // Bump to force ChooseForMeAnimation to re-run (spin again)
   const [cfmReplayKey, setCfmReplayKey] = useState(0);
   const [showSwipeFilters, setShowSwipeFilters] = useState(false);
-  const [activeFilters, setActiveFilters] = useState({ maxDistance: 5, selectedPrices: [], openNow: false, delivery: false, reservations: false });
+  const [activeFilters, setActiveFilters] = useState({ maxDistance: 5, selectedPrices: [], selectedCuisines: [], openNow: false, delivery: false, reservations: false });
   const [showMatchPrompt, setShowMatchPrompt] = useState(false);
   const [locationName, setLocationName] = useState(null);
   const [showGroupPanel, setShowGroupPanel] = useState(false);
@@ -360,6 +360,10 @@ export default function App() {
         const level = priceLevels[r.price] || 2;
         return filters.selectedPrices.includes(level);
       });
+    }
+    if (filters.selectedCuisines && filters.selectedCuisines.length > 0) {
+      const allowed = new Set(filters.selectedCuisines.flatMap(c => CUISINE_FILTER_MAP[c] || [c]));
+      filtered = filtered.filter(r => r.cuisine && allowed.has(r.cuisine));
     }
     if (filters.openNow) {
       filtered = filtered.filter(r => {
@@ -897,7 +901,7 @@ export default function App() {
               style={{
                 width: '32px', height: '32px', borderRadius: '10px',
                 border: 'none', background: 'var(--bg-surface)',
-                color: (activeFilters.maxDistance < 20 || activeFilters.selectedPrices.length > 0 || activeFilters.openNow || activeFilters.delivery || activeFilters.reservations)
+                color: (activeFilters.maxDistance < 20 || activeFilters.selectedPrices.length > 0 || (activeFilters.selectedCuisines && activeFilters.selectedCuisines.length > 0) || activeFilters.openNow || activeFilters.delivery || activeFilters.reservations)
                   ? 'var(--accent-secondary)' : 'var(--text-secondary)',
                 cursor: 'pointer',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
