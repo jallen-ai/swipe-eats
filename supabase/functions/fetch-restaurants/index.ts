@@ -325,9 +325,13 @@ Deno.serve(async (req) => {
       });
 
       if (filteredPlaces.length > 0) {
-        const restaurants = await Promise.all(
-          filteredPlaces.map((p: any) => mapPlace(p, cell))
-        );
+        // Process places sequentially within a cell — mapPlace uploads a photo
+        // per place and running 20 in parallel × 5 parallel cells exhausts the
+        // storage connection pool and causes timeouts.
+        const restaurants = [];
+        for (const p of filteredPlaces) {
+          restaurants.push(await mapPlace(p, cell));
+        }
         // Sort by place_id so concurrent processCell upserts take row locks in
         // the same order — adjacent cells overlap on border restaurants and
         // would otherwise deadlock.
