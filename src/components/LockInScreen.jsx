@@ -37,9 +37,7 @@ function getOpenTableUrl(restaurant) {
 }
 
 function getDeliveryUrl(app, restaurant) {
-  // Search by name + city only — full addresses break delivery app search
-  const city = getCityFromAddress(restaurant.address);
-  const query = encodeURIComponent(`${restaurant.name} ${city}`.trim());
+  const query = encodeURIComponent(restaurant.name);
   switch (app) {
     case 'Uber Eats':
       return `https://www.ubereats.com/search?q=${query}`;
