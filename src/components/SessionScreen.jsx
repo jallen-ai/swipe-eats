@@ -39,6 +39,27 @@ export default function SessionScreen({
 
   const locationDenied = geoError === 'location_denied' && !coords;
 
+  // Add to Home Screen
+  const [deferredPrompt, setDeferredPrompt] = useState(null);
+  const [showIOSModal, setShowIOSModal] = useState(false);
+  const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+  const isInstalled = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
+
+  useEffect(() => {
+    const handler = (e) => { e.preventDefault(); setDeferredPrompt(e); };
+    window.addEventListener('beforeinstallprompt', handler);
+    return () => window.removeEventListener('beforeinstallprompt', handler);
+  }, []);
+
+  const handleAddToHomeScreen = () => {
+    if (deferredPrompt) {
+      deferredPrompt.prompt();
+      deferredPrompt.userChoice.then(() => setDeferredPrompt(null));
+    } else if (isIOS) {
+      setShowIOSModal(true);
+    }
+  };
+
   const [showLocationInput, setShowLocationInput] = useState(false);
   const [locationQuery, setLocationQuery] = useState('');
   const [locationName, setLocationName] = useState(null);
@@ -548,6 +569,69 @@ export default function SessionScreen({
           Privacy Policy
         </a>
       </div>
+
+      {!isInstalled && (deferredPrompt || isIOS) && (
+        <div style={{ textAlign: 'center', paddingTop: '6px' }}>
+          <button
+            onClick={handleAddToHomeScreen}
+            style={{
+              background: 'none', border: 'none', cursor: 'pointer', padding: 0,
+              fontSize: '11px', color: 'var(--accent-primary)', fontWeight: 700,
+              textDecoration: 'underline', textUnderlineOffset: '2px',
+            }}
+          >
+            📲 Add to Home Screen
+          </button>
+        </div>
+      )}
+
+      {/* iOS instructions modal */}
+      {showIOSModal && (
+        <div
+          onClick={() => setShowIOSModal(false)}
+          style={{
+            position: 'fixed', inset: 0, zIndex: 999,
+            background: 'rgba(0,0,0,0.6)', display: 'flex',
+            alignItems: 'flex-end', justifyContent: 'center',
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              background: 'var(--bg-card)', borderRadius: '20px 20px 0 0',
+              padding: '28px 24px 40px', width: '100%', maxWidth: '480px',
+            }}
+          >
+            <h3 style={{ margin: '0 0 16px', fontSize: '17px', fontWeight: 800, color: 'var(--text-primary)', textAlign: 'center' }}>
+              Add to Home Screen
+            </h3>
+            <ol style={{ margin: 0, paddingLeft: '20px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <li style={{ fontSize: '14px', color: 'var(--text-secondary)', fontWeight: 600, lineHeight: 1.4 }}>
+                Tap the <strong>Share</strong> button{' '}
+                <span style={{ fontSize: '16px' }}>⎋</span>{' '}
+                at the bottom of your browser
+              </li>
+              <li style={{ fontSize: '14px', color: 'var(--text-secondary)', fontWeight: 600, lineHeight: 1.4 }}>
+                Scroll down and tap <strong>"Add to Home Screen"</strong>
+              </li>
+              <li style={{ fontSize: '14px', color: 'var(--text-secondary)', fontWeight: 600, lineHeight: 1.4 }}>
+                Tap <strong>"Add"</strong> — Nosh Pit will appear on your home screen like an app
+              </li>
+            </ol>
+            <button
+              onClick={() => setShowIOSModal(false)}
+              style={{
+                marginTop: '24px', width: '100%', padding: '14px',
+                borderRadius: '14px', border: 'none',
+                background: 'var(--accent-primary)', color: 'white',
+                fontSize: '15px', fontWeight: 800, cursor: 'pointer',
+              }}
+            >
+              Got it
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
