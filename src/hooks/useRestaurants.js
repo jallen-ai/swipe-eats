@@ -91,10 +91,17 @@ export function useRestaurants(radiusMi = 5) {
       const excludeCuisines = new Set([
         'Convenience Store', 'Gas Station', 'Shopping Mall', 'Pharmacy', 'Drugstore',
       ]);
+      const seenNames = new Set();
       const mapped = data.restaurants
         .filter((r) => !excludeCuisines.has(r.cuisine))
         .map((r) => mapRestaurant(r, lat, lng))
-        .sort((a, b) => (a.distanceMi ?? 999) - (b.distanceMi ?? 999));
+        .sort((a, b) => (a.distanceMi ?? 999) - (b.distanceMi ?? 999))
+        .filter((r) => {
+          const key = r.name.trim().toLowerCase();
+          if (seenNames.has(key)) return false;
+          seenNames.add(key);
+          return true;
+        });
 
       setRestaurants(mapped);
     } catch (e) {
