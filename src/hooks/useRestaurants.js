@@ -94,7 +94,6 @@ export function useRestaurants(radiusMi = 5) {
       const mapped = data.restaurants
         .filter((r) => !excludeCuisines.has(r.cuisine))
         .map((r) => mapRestaurant(r, lat, lng))
-        .filter((r) => r.photo) // Only show restaurants with photos
         .sort((a, b) => (a.distanceMi ?? 999) - (b.distanceMi ?? 999));
 
       setRestaurants(mapped);
