@@ -23,9 +23,9 @@ export default function MatchTray({ matches, onSelect, onRemove, onViewAll }) {
         <button
           onClick={() => { haptics.navTransition(); onViewAll(); }}
           style={{
-            width: '52px',
-            height: '52px',
-            borderRadius: '14px',
+            width: '64px',
+            height: '64px',
+            borderRadius: '16px',
             border: '2px solid var(--accent-primary)',
             background: 'linear-gradient(135deg, var(--accent-primary), #FF7043)',
             cursor: 'pointer',
@@ -38,10 +38,10 @@ export default function MatchTray({ matches, onSelect, onRemove, onViewAll }) {
             boxShadow: '0 0 12px var(--accent-primary-glow)',
           }}
         >
-          <span style={{ fontSize: '15px', fontWeight: 900, color: 'white', lineHeight: 1 }}>
+          <span style={{ fontSize: '18px', fontWeight: 900, color: 'white', lineHeight: 1 }}>
             {matches.length}
           </span>
-          <span style={{ fontSize: '7px', fontWeight: 800, color: 'rgba(255,255,255,0.8)', letterSpacing: '0.5px', textTransform: 'uppercase' }}>
+          <span style={{ fontSize: '8px', fontWeight: 800, color: 'rgba(255,255,255,0.8)', letterSpacing: '0.5px', textTransform: 'uppercase' }}>
             matches
           </span>
         </button>
@@ -61,9 +61,9 @@ export default function MatchTray({ matches, onSelect, onRemove, onViewAll }) {
             onClick={interactable ? () => onSelect(m) : undefined}
             disabled={!interactable}
             style={{
-              width: '52px',
-              height: '52px',
-              borderRadius: '14px',
+              width: '64px',
+              height: '64px',
+              borderRadius: '16px',
               border: '2px solid var(--accent-primary)',
               overflow: 'hidden',
               cursor: interactable ? 'pointer' : 'default',

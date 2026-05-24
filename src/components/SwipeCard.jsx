@@ -247,11 +247,11 @@ export default function SwipeCard({ restaurant, onSwipe, isTop, style }) {
       <div style={{
         height: '40%',
         background: 'var(--bg-card)',
-        padding: '20px 24px',
+        padding: '16px 24px 20px',
         display: 'flex',
         flexDirection: 'column',
-        justifyContent: 'center',
-        gap: '12px',
+        justifyContent: 'flex-start',
+        gap: '10px',
       }}>
         <div style={{
           display: 'flex',
