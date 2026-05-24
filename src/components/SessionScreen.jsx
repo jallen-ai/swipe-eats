@@ -12,9 +12,9 @@ const EXPERIENCES = [
 ];
 
 const EXPERIENCE_DEFAULTS = {
-  pickup:   { maxDistance: 3,  selectedPrices: [1, 2, 3], openNow: false, delivery: false, reservations: false },
-  delivery: { maxDistance: 5,  selectedPrices: [1, 2, 3], openNow: false, delivery: true,  reservations: false },
-  dinein:   { maxDistance: 10, selectedPrices: [2, 3, 4], openNow: false, delivery: false, reservations: false },
+  pickup:   { maxDistance: 2,  selectedPrices: [1, 2, 3], openNow: true, delivery: false, reservations: false },
+  delivery: { maxDistance: 5,  selectedPrices: [1, 2, 3], openNow: true, delivery: true,  reservations: false },
+  dinein:   { maxDistance: 5,  selectedPrices: [2, 3, 4], openNow: true, delivery: false, reservations: false },
 };
 
 export default function SessionScreen({
