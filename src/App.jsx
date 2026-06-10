@@ -57,6 +57,9 @@ export default function App() {
   const [locationName, setLocationName] = useState(null);
   const [showGroupPanel, setShowGroupPanel] = useState(false);
   const matchPromptShownRef = useRef(false);
+  const [bonusDeck, setBonusDeck] = useState([]);
+  const [showBonusPrompt, setShowBonusPrompt] = useState(false);
+  const bonusPromptShownRef = useRef(false);
 
   const session = useSession();
   const isGroupActive = mode === 'group' && (session.sessionStatus === 'active' || session.sessionStatus === 'waiting');
@@ -242,15 +245,19 @@ export default function App() {
     if (!realtime.newPartnerMatches || realtime.newPartnerMatches.length === 0) return;
     setMatches(prev => {
       const existing = new Set(prev.map(m => m.id));
+      // Fall back to availableRestaurants when a matched restaurant isn't found in the
+      // deck yet (e.g. the group deck is still initialising for one partner), so the
+      // match is never silently dropped on either side.
+      const allRestaurants = availableRestaurants || [];
       const additions = realtime.newPartnerMatches
-        .map(id => deck.find(r => r.id === id))
+        .map(id => deck.find(r => r.id === id) || allRestaurants.find(r => r.id === id))
         .filter(r => r && !existing.has(r.id));
       if (additions.length === 0) return prev;
       haptics.match();
       return [...prev, ...additions];
     });
     realtime.clearPartnerMatches();
-  }, [realtime.newPartnerMatches, realtime.clearPartnerMatches, deck]);
+  }, [realtime.newPartnerMatches, realtime.clearPartnerMatches, deck, availableRestaurants]);
 
   // Non-creator: when the creator broadcasts a tentative pick, just stash the
   // restaurant locally so the status pill on Review Matches can name it. We
@@ -333,6 +340,9 @@ export default function App() {
     setShowMatchPrompt(false);
     setShowGroupPanel(false);
     matchPromptShownRef.current = false;
+    setBonusDeck([]);
+    setShowBonusPrompt(false);
+    bonusPromptShownRef.current = false;
     const basePath = import.meta.env.BASE_URL.replace(/\/$/, '') || '/';
     if (window.location.pathname !== basePath) {
       window.history.replaceState(null, '', basePath);
@@ -379,6 +389,47 @@ export default function App() {
     }
     return filtered;
   }, []);
+
+  // Compute "bonus" restaurants: those that pass all non-cuisine filters but whose
+  // cuisine value doesn't appear in any of the app's built-in filter options.
+  // These are shown as an optional extra round when the main deck is exhausted.
+  const computeBonusDeck = useCallback((source, filters) => {
+    const allKnownCuisines = new Set(Object.values(CUISINE_FILTER_MAP).flat());
+    let bonus = source;
+    if (filters.maxDistance < 20) {
+      bonus = bonus.filter(r => r.distanceMi != null && r.distanceMi <= filters.maxDistance);
+    }
+    if (filters.selectedPrices && filters.selectedPrices.length > 0) {
+      const priceLevels = { '$': 1, '$$': 2, '$$$': 3, '$$$$': 4 };
+      bonus = bonus.filter(r => filters.selectedPrices.includes(priceLevels[r.price] || 2));
+    }
+    if (filters.openNow) {
+      bonus = bonus.filter(r => isOpenNow(r.hours).isOpen !== false);
+    }
+    if (filters.delivery) {
+      bonus = bonus.filter(r => r.delivery !== false);
+    }
+    if (filters.reservations) {
+      bonus = bonus.filter(r => r.reservations !== false);
+    }
+    // Keep only restaurants whose cuisine isn't represented by any filter chip
+    return bonus.filter(r => !allKnownCuisines.has(r.cuisine));
+  }, []);
+
+  // When the deck empties and cuisine filters were active, surface any bonus restaurants
+  // that were silently excluded because their cuisine type has no matching filter chip.
+  useEffect(() => {
+    if (cardsRemaining > 0 || bonusPromptShownRef.current || mode === 'group') return;
+    if (!activeFilters.selectedCuisines || activeFilters.selectedCuisines.length === 0) return;
+    const source = availableRestaurants || FALLBACK_RESTAURANTS;
+    const bonus = computeBonusDeck(source, activeFilters);
+    const alreadySeen = new Set(deck.map(r => r.id));
+    const fresh = bonus.filter(r => !alreadySeen.has(r.id));
+    if (fresh.length === 0) return;
+    setBonusDeck(fresh);
+    setShowBonusPrompt(true);
+    bonusPromptShownRef.current = true;
+  }, [cardsRemaining, activeFilters, availableRestaurants, computeBonusDeck, deck, mode]);
 
   const handleStart = async (selectedMode, filters) => {
     setMode(selectedMode);
@@ -941,6 +992,57 @@ export default function App() {
           </div>
         )}
         {cardsRemaining <= 0 ? (
+          showBonusPrompt ? (
+            // Bonus round prompt — shown when cuisine filters were active and there are
+            // nearby restaurants whose cuisine type has no matching filter chip.
+            <div style={{ textAlign: 'center', width: '100%', padding: '32px' }}>
+              <div style={{ fontSize: '48px', marginBottom: '16px' }}>🔍</div>
+              <h2 style={{ fontSize: '22px', fontWeight: 800, marginBottom: '8px' }}>You've seen everything!</h2>
+              <p style={{ color: 'var(--text-secondary)', fontSize: '15px', fontWeight: 600, lineHeight: 1.5, marginBottom: '8px' }}>
+                There {bonusDeck.length === 1 ? 'is' : 'are'} <strong style={{ color: 'var(--text-primary)' }}>{bonusDeck.length}</strong> nearby restaurant{bonusDeck.length === 1 ? '' : 's'} that don't fit your cuisine filters. Want to swipe them anyway?
+              </p>
+              <button
+                onClick={() => {
+                  haptics.navTransition();
+                  const sorted = engineRef.current.sortRestaurants(bonusDeck);
+                  setDeck(prev => [...prev, ...sorted]);
+                  setShowBonusPrompt(false);
+                  setBonusDeck([]);
+                }}
+                style={{
+                  marginTop: '16px', padding: '14px 32px',
+                  borderRadius: 'var(--radius-btn)', border: 'none',
+                  background: 'linear-gradient(135deg, var(--accent-primary), #FF7043)',
+                  color: 'white', fontSize: '16px', fontWeight: 800, cursor: 'pointer',
+                  fontFamily: 'Nunito', boxShadow: '0 4px 16px var(--accent-primary-glow)',
+                  display: 'block', width: '100%', maxWidth: '280px', margin: '16px auto 0',
+                }}
+              >Swipe More</button>
+              {matches.length > 0 && (
+                <button
+                  onClick={() => { haptics.navTransition(); setShowBonusPrompt(false); handleViewMatches(); }}
+                  style={{
+                    marginTop: '10px', padding: '14px 32px',
+                    borderRadius: 'var(--radius-btn)',
+                    border: '1px solid var(--bg-surface)', background: 'transparent',
+                    color: 'var(--text-secondary)', fontSize: '16px', fontWeight: 800,
+                    cursor: 'pointer', fontFamily: 'Nunito',
+                    display: 'block', width: '100%', maxWidth: '280px', margin: '10px auto 0',
+                  }}
+                >Review {matches.length} Match{matches.length > 1 ? 'es' : ''}</button>
+              )}
+              <button
+                onClick={() => setShowBonusPrompt(false)}
+                style={{
+                  marginTop: '10px', padding: '10px 32px',
+                  borderRadius: 'var(--radius-btn)', border: 'none', background: 'none',
+                  color: 'var(--text-dim)', fontSize: '14px', fontWeight: 700,
+                  cursor: 'pointer', fontFamily: 'Nunito',
+                  display: 'block', width: '100%', maxWidth: '280px', margin: '10px auto 0',
+                }}
+              >No thanks</button>
+            </div>
+          ) : (
           <div style={{ textAlign: 'center', width: '100%', padding: '32px' }}>
             <div style={{ fontSize: '48px', marginBottom: '16px' }}>🍽️</div>
             <h2 style={{ fontSize: '22px', fontWeight: 800, marginBottom: '8px' }}>That's all for now!</h2>
@@ -980,6 +1082,7 @@ export default function App() {
               >Reshuffle</button>
             )}
           </div>
+          )
         ) : (
           <>
             {nextCard && (
