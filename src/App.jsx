@@ -418,8 +418,11 @@ export default function App() {
 
   // When the deck empties and cuisine filters were active, surface any bonus restaurants
   // that were silently excluded because their cuisine type has no matching filter chip.
+  // NOTE: cardsRemaining is declared later in the render body, so we derive it here
+  // from deck/currentIndex to avoid a temporal dead zone ReferenceError.
   useEffect(() => {
-    if (cardsRemaining > 0 || bonusPromptShownRef.current || mode === 'group') return;
+    const remaining = deck.length - currentIndex;
+    if (remaining > 0 || bonusPromptShownRef.current || mode === 'group') return;
     if (!activeFilters.selectedCuisines || activeFilters.selectedCuisines.length === 0) return;
     const source = availableRestaurants || FALLBACK_RESTAURANTS;
     const bonus = computeBonusDeck(source, activeFilters);
@@ -429,7 +432,7 @@ export default function App() {
     setBonusDeck(fresh);
     setShowBonusPrompt(true);
     bonusPromptShownRef.current = true;
-  }, [cardsRemaining, activeFilters, availableRestaurants, computeBonusDeck, deck, mode]);
+  }, [deck, currentIndex, activeFilters, availableRestaurants, computeBonusDeck, mode]);
 
   const handleStart = async (selectedMode, filters) => {
     setMode(selectedMode);
