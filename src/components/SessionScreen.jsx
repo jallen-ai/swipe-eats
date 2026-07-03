@@ -124,7 +124,7 @@ export default function SessionScreen({
     haptics.medium();
   };
 
-  const cantStart = locationDenied || loading || starting;
+  const cantStart = locationDenied || starting;
 
   const handleStartClick = async () => {
     if (cantStart) return;

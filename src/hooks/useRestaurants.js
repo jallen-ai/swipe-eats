@@ -50,21 +50,32 @@ export function useRestaurants(radiusMi = 5) {
   // Request geolocation
   useEffect(() => {
     if (!navigator.geolocation) {
-      setError('Geolocation not supported');
+      setError('location_denied');
       return;
     }
 
+    let resolved = false;
+
     navigator.geolocation.getCurrentPosition(
       (pos) => {
+        resolved = true;
         setCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude });
       },
       (err) => {
+        resolved = true;
         console.warn('Geolocation denied:', err.message);
-        // Don't silently fall back to a random location — let the UI handle it
         setError('location_denied');
       },
       { enableHighAccuracy: false, timeout: 10000, maximumAge: 300000 }
     );
+
+    // Hard fallback: some browsers silently swallow the geolocation request
+    // without calling either callback. After 12 s, surface the manual input.
+    const fallback = setTimeout(() => {
+      if (!resolved) setError('location_denied');
+    }, 12000);
+
+    return () => clearTimeout(fallback);
   }, []);
 
   // Fetch restaurants when coords are available
