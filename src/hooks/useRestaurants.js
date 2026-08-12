@@ -83,9 +83,13 @@ export function useRestaurants(radiusMi = 5) {
     setLoading(true);
     setError(null);
 
+    const controller = new AbortController();
+    const fetchTimeout = setTimeout(() => controller.abort(), 15000);
+
     try {
       const resp = await supabase.functions.invoke('fetch-restaurants', {
         body: { lat, lng, radiusMi },
+        signal: controller.signal,
       });
 
       if (resp.error) {
@@ -120,6 +124,7 @@ export function useRestaurants(radiusMi = 5) {
       setError(e.message);
       setRestaurants([]);
     } finally {
+      clearTimeout(fetchTimeout);
       setLoading(false);
     }
   }, [radiusMi]);

@@ -533,19 +533,6 @@ export default function SessionScreen({
         {starting ? 'Getting ready…' : "Let's Nosh"}
       </button>
 
-      {loading && (
-        <div style={{
-          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
-          color: 'var(--text-dim)', fontSize: '12px', fontWeight: 600,
-        }}>
-          <div style={{
-            width: '8px', height: '8px', borderRadius: '50%',
-            background: 'var(--accent-secondary)',
-            animation: 'pulse 1.5s ease-in-out infinite',
-          }} />
-          {locationName ? `Finding restaurants near ${locationName.split(',')[0]}...` : 'Finding restaurants near you...'}
-        </div>
-      )}
 
       <div style={{
         display: 'flex', flexDirection: 'row', justifyContent: 'center', alignItems: 'center',
