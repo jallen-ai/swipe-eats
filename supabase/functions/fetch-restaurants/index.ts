@@ -358,12 +358,15 @@ Deno.serve(async (req) => {
       await Promise.all(batch.map(processCell));
     }
 
-    // Query restaurants by bounding box (works across all tiers)
+    // Query restaurants by bounding box.
+    // Selecting only columns the client needs avoids reading TOAST pages for
+    // unused wide columns (types[], photo_ref, grid_cell, fetched_at, updated_at),
+    // which cuts Disk IO significantly on large tables.
     const latDelta = (tier.gridSpan * tier.cellSize) / 2 + 0.01;
     const lngDelta = (tier.gridSpan * tier.cellSize) / 2 + 0.01;
     const { data: restaurants, error: fetchError } = await supabase
       .from("restaurants")
-      .select("*")
+      .select("place_id,name,cuisine,cuisine_group,price_level,rating,rating_count,lat,lng,address,photo_path,photo_attributions,hours,editorial_summary,phone,website,delivery,dine_in,takeout,reservable")
       .gte("lat", lat - latDelta)
       .lte("lat", lat + latDelta)
       .gte("lng", lng - lngDelta)
