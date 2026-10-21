@@ -439,6 +439,10 @@ export default function App() {
     setActiveFilters(filters);
     const source = availableRestaurants || FALLBACK_RESTAURANTS;
     const filtered = applyFilters(source, filters);
+    if (filtered.length === 0) {
+      setMode(null);
+      return { error: 'no_restaurants' };
+    }
     if (selectedMode === 'group') {
       const id = await session.createSession(filtered);
       if (id) {
@@ -449,6 +453,7 @@ export default function App() {
       initDeck(filtered);
       setScreen('swiping');
     }
+    return { error: null };
   };
 
   const handleGoSolo = useCallback(() => {

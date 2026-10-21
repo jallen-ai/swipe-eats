@@ -29,6 +29,7 @@ export default function SessionScreen({
 }) {
   const [experience, setExperience] = useState('delivery');
   const [starting, setStarting] = useState(false);
+  const [noResultsError, setNoResultsError] = useState(false);
   const [maxDistance, setMaxDistance] = useState(EXPERIENCE_DEFAULTS.delivery.maxDistance);
   const [selectedPrices, setSelectedPrices] = useState(EXPERIENCE_DEFAULTS.delivery.selectedPrices);
   const [selectedCuisines, setSelectedCuisines] = useState([]);
@@ -130,8 +131,12 @@ export default function SessionScreen({
     if (cantStart) return;
     haptics.medium();
     setStarting(true);
+    setNoResultsError(false);
     try {
-      await onStart('group', filters);
+      const result = await onStart('group', filters);
+      if (result?.error === 'no_restaurants') {
+        setNoResultsError(true);
+      }
     } finally {
       setStarting(false);
     }
@@ -500,6 +505,22 @@ export default function SessionScreen({
         <ToggleRow label="Delivery Available" value={delivery} onChange={setDelivery} />
         <ToggleRow label="Accepts Reservations" value={reservations} onChange={setReservations} />
       </div>
+
+      {noResultsError && (
+        <div style={{
+          background: 'rgba(255, 80, 50, 0.12)',
+          border: '1px solid rgba(255, 80, 50, 0.4)',
+          borderRadius: '12px',
+          padding: '12px 16px',
+          marginBottom: '8px',
+          color: 'var(--text-primary)',
+          fontSize: '14px',
+          fontWeight: 600,
+          lineHeight: 1.5,
+        }}>
+          No restaurants found with these filters. Try increasing the distance or turning off <strong>Open Now</strong>.
+        </div>
+      )}
 
       {/* Let's Nosh (group share) */}
       <button
