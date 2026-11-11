@@ -60,6 +60,8 @@ export default function App() {
   const [bonusDeck, setBonusDeck] = useState([]);
   const [showBonusPrompt, setShowBonusPrompt] = useState(false);
   const bonusPromptShownRef = useRef(false);
+  const [filterToast, setFilterToast] = useState(null);
+  const filterToastTimerRef = useRef(null);
 
   const session = useSession();
   const isGroupActive = mode === 'group' && (session.sessionStatus === 'active' || session.sessionStatus === 'waiting');
@@ -385,7 +387,7 @@ export default function App() {
       filtered = filtered.filter(r => r.delivery !== false);
     }
     if (filters.reservations) {
-      filtered = filtered.filter(r => r.reservations !== false);
+      filtered = filtered.filter(r => r.reservable !== false);
     }
     return filtered;
   }, []);
@@ -410,7 +412,7 @@ export default function App() {
       bonus = bonus.filter(r => r.delivery !== false);
     }
     if (filters.reservations) {
-      bonus = bonus.filter(r => r.reservations !== false);
+      bonus = bonus.filter(r => r.reservable !== false);
     }
     // Keep only restaurants whose cuisine isn't represented by any filter chip
     return bonus.filter(r => !allKnownCuisines.has(r.cuisine));
@@ -619,19 +621,27 @@ export default function App() {
     resetToHome({ offerRejoin: false });
   }, [session]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const showFilterToast = useCallback((msg) => {
+    setFilterToast(msg);
+    clearTimeout(filterToastTimerRef.current);
+    filterToastTimerRef.current = setTimeout(() => setFilterToast(null), 3000);
+  }, []);
+
   const handleSwipeFilterApply = useCallback((newFilters) => {
-    setActiveFilters(newFilters);
     setShowSwipeFilters(false);
-    // Re-filter remaining cards from the full source
     const source = availableRestaurants || FALLBACK_RESTAURANTS;
     const filtered = applyFilters(source, newFilters);
-    // Keep already-swiped cards, replace the rest with newly filtered+sorted
     const alreadySwiped = new Set(deck.slice(0, currentIndex).map(r => r.id));
     const remaining = filtered.filter(r => !alreadySwiped.has(r.id));
+    if (remaining.length === 0) {
+      showFilterToast('No restaurants match — try loosening your filters.');
+      return;
+    }
+    setActiveFilters(newFilters);
     const sorted = engineRef.current.sortRestaurants(remaining);
     setDeck([...deck.slice(0, currentIndex), ...sorted]);
     setCardKey(k => k + 1);
-  }, [availableRestaurants, applyFilters, deck, currentIndex]);
+  }, [availableRestaurants, applyFilters, deck, currentIndex, showFilterToast]);
 
   const handleViewMatches = () => {
     setScreen('review');
@@ -1184,6 +1194,20 @@ export default function App() {
           onLocationChange={handleLocationChange}
           canChangeLocation={mode === 'solo' || (mode === 'group' && session.isCreator)}
         />
+      )}
+
+      {/* Filter-too-tight toast */}
+      {filterToast && (
+        <div style={{
+          position: 'absolute', bottom: '100px', left: '50%', transform: 'translateX(-50%)',
+          zIndex: 60, background: 'rgba(30,30,40,0.95)', borderRadius: '12px',
+          padding: '10px 18px', pointerEvents: 'none',
+          whiteSpace: 'nowrap',
+          boxShadow: '0 4px 16px rgba(0,0,0,0.4)',
+          animation: 'fadeIn 0.2s ease-out',
+        }}>
+          <span style={{ fontSize: '13px', fontWeight: 700, color: 'white' }}>{filterToast}</span>
+        </div>
       )}
 
       {/* Group members panel — also serves as the re-share hub for the creator
